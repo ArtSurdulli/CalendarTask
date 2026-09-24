@@ -4,7 +4,9 @@ import {
   CALENDAR_COLUMNS,
   getEventsForDay,
   getMonthGrid,
+  getNextDay,
   getNextMonth,
+  getPreviousDay,
   getPreviousMonth,
   isSameCalendarDay,
   toDayKey,
@@ -163,6 +165,33 @@ describe('getNextMonth / getPreviousMonth', () => {
     const prev = getPreviousMonth(localDate(2024, 1, 10));
     expect(prev.getFullYear()).toBe(2023);
     expect(prev.getMonth()).toBe(11); // December
+  });
+});
+
+describe('getNextDay / getPreviousDay', () => {
+  test('advances within a month', () => {
+    const next = getNextDay(localDate(2023, 10, 15));
+    expect(next).toEqual(localDate(2023, 10, 16));
+  });
+
+  test('rolls forward across a month boundary', () => {
+    const next = getNextDay(localDate(2023, 10, 31));
+    expect(next).toEqual(localDate(2023, 11, 1));
+  });
+
+  test('rolls forward across a year boundary', () => {
+    const next = getNextDay(localDate(2023, 12, 31));
+    expect(next).toEqual(localDate(2024, 1, 1));
+  });
+
+  test('rolls backward across a month boundary', () => {
+    const prev = getPreviousDay(localDate(2023, 11, 1));
+    expect(prev).toEqual(localDate(2023, 10, 31));
+  });
+
+  test('rolls backward across a year boundary', () => {
+    const prev = getPreviousDay(localDate(2024, 1, 1));
+    expect(prev).toEqual(localDate(2023, 12, 31));
   });
 });
 

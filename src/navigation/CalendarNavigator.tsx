@@ -7,9 +7,11 @@ export type CalendarStackParamList = {
   CalendarHome: undefined;
   /**
    * `date`: local ISO string (see dateUtils) of the day to default a new
-   * event onto. Ignored when `eventId` is present.
+   * event onto; only its date is used. `hour`: explicit start hour (0-23)
+   * for a new event - when omitted, it defaults to the next round hour.
+   * Both are ignored when `eventId` is present.
    */
-  EventForm: { eventId?: string; date?: string } | undefined;
+  EventForm: { eventId?: string; date?: string; hour?: number } | undefined;
 };
 
 const Stack = createNativeStackNavigator<CalendarStackParamList>();

@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { format } from 'date-fns';
+import { format, isSameMonth } from 'date-fns';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { DayScheduleView } from './DayScheduleView';
 import { DayView } from './DayView';
 import { MonthGrid } from './MonthGrid';
-import { getNextMonth, getPreviousMonth, toLocalISOString } from './dateUtils';
+import {
+  getNextDay,
+  getNextMonth,
+  getPreviousDay,
+  getPreviousMonth,
+  toLocalISOString,
+} from './dateUtils';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
   loadEvents,
@@ -18,11 +25,14 @@ import type { CalendarStackParamList } from '../../navigation/CalendarNavigator'
 
 type Props = NativeStackScreenProps<CalendarStackParamList, 'CalendarHome'>;
 
+type ViewMode = 'month' | 'day';
+
 export function CalendarScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.auth.user?.id);
 
   const [today] = useState(() => new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [displayedMonth, setDisplayedMonth] = useState(today);
   const [selectedDay, setSelectedDay] = useState(today);
 
@@ -45,9 +55,31 @@ export function CalendarScreen({ navigation }: Props) {
   const goToNextMonth = () =>
     setDisplayedMonth((current) => getNextMonth(current));
 
+  // Day navigation also keeps the month grid in sync with wherever it
+  // lands, so switching back to Month view shows the right month instead
+  // of wherever it was left - but only for these buttons. Tapping an
+  // out-of-month cell directly in the grid deliberately doesn't do this
+  // (Month mode is unchanged).
+  const goToPreviousDay = () => {
+    const next = getPreviousDay(selectedDay);
+    setSelectedDay(next);
+    setDisplayedMonth((month) => (isSameMonth(next, month) ? month : next));
+  };
+  const goToNextDay = () => {
+    const next = getNextDay(selectedDay);
+    setSelectedDay(next);
+    setDisplayedMonth((month) => (isSameMonth(next, month) ? month : next));
+  };
+
   const goToAddEvent = () => {
     navigation.navigate('EventForm', { date: toLocalISOString(selectedDay) });
   };
+
+  const goToAddEventAtHour = (hour: number) => {
+    navigation.navigate('EventForm', { date: toLocalISOString(selectedDay), hour });
+  };
+
+  const goToEditEvent = (id: string) => navigation.navigate('EventForm', { eventId: id });
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -58,14 +90,16 @@ export function CalendarScreen({ navigation }: Props) {
           adjustsFontSizeToFit
           minimumFontScale={0.7}
         >
-          {format(displayedMonth, 'MMMM yyyy')}
+          {viewMode === 'month'
+            ? format(displayedMonth, 'MMMM yyyy')
+            : format(selectedDay, 'EEEE, MMMM d, yyyy')}
         </Text>
 
         <View style={styles.headerRightGroup}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Previous month"
-            onPress={goToPreviousMonth}
+            accessibilityLabel={viewMode === 'month' ? 'Previous month' : 'Previous day'}
+            onPress={viewMode === 'month' ? goToPreviousMonth : goToPreviousDay}
             style={styles.navButton}
           >
             <Text style={styles.navButtonText}>{'‹'}</Text>
@@ -73,8 +107,8 @@ export function CalendarScreen({ navigation }: Props) {
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next month"
-            onPress={goToNextMonth}
+            accessibilityLabel={viewMode === 'month' ? 'Next month' : 'Next day'}
+            onPress={viewMode === 'month' ? goToNextMonth : goToNextDay}
             style={styles.navButton}
           >
             <Text style={styles.navButtonText}>{'›'}</Text>
@@ -91,23 +125,72 @@ export function CalendarScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <View style={[styles.gridCard, shadows.card]}>
-        <MonthGrid
-          month={displayedMonth}
-          selectedDay={selectedDay}
-          onSelectDay={setSelectedDay}
-          eventCountsByDay={eventCountsByDay}
-          eventCategoriesByDay={eventCategoriesByDay}
-        />
+      <View style={styles.segmentedControlRow}>
+        <ViewModeSwitch value={viewMode} onChange={setViewMode} />
       </View>
 
-      <DayView
-        day={selectedDay}
-        events={dayEvents}
-        onSelectEvent={(id) => navigation.navigate('EventForm', { eventId: id })}
-        onCreate={goToAddEvent}
-      />
+      {viewMode === 'month' ? (
+        <>
+          <View style={[styles.gridCard, shadows.card]}>
+            <MonthGrid
+              month={displayedMonth}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+              eventCountsByDay={eventCountsByDay}
+              eventCategoriesByDay={eventCategoriesByDay}
+            />
+          </View>
+
+          <DayView
+            day={selectedDay}
+            events={dayEvents}
+            onSelectEvent={goToEditEvent}
+            onCreate={goToAddEvent}
+          />
+        </>
+      ) : (
+        <DayScheduleView
+          day={selectedDay}
+          events={dayEvents}
+          onSelectEvent={goToEditEvent}
+          onCreate={goToAddEventAtHour}
+        />
+      )}
     </SafeAreaView>
+  );
+}
+
+interface ViewModeSwitchProps {
+  value: ViewMode;
+  onChange: (mode: ViewMode) => void;
+}
+
+const VIEW_MODES: { mode: ViewMode; label: string }[] = [
+  { mode: 'month', label: 'Month' },
+  { mode: 'day', label: 'Day' },
+];
+
+function ViewModeSwitch({ value, onChange }: ViewModeSwitchProps) {
+  return (
+    <View style={styles.segmentedControl}>
+      {VIEW_MODES.map(({ mode, label }) => {
+        const selected = value === mode;
+        return (
+          <Pressable
+            key={mode}
+            accessibilityRole="tab"
+            accessibilityState={{ selected }}
+            accessibilityLabel={`${label} view`}
+            onPress={() => onChange(mode)}
+            style={[styles.segment, selected && styles.segmentActive]}
+          >
+            <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -145,6 +228,36 @@ const styles = StyleSheet.create({
   navButtonText: {
     fontSize: 22,
     color: colors.textPrimary,
+  },
+  segmentedControlRow: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderRadius: radius.full,
+    padding: 2,
+  },
+  segment: {
+    minWidth: 72,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.full,
+  },
+  segmentActive: {
+    backgroundColor: colors.accent,
+  },
+  segmentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  segmentTextActive: {
+    color: colors.onPrimary,
   },
   gridCard: {
     backgroundColor: colors.card,

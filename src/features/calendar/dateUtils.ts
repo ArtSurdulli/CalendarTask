@@ -1,4 +1,5 @@
 import {
+  addDays,
   addMonths,
   eachDayOfInterval,
   endOfMonth,
@@ -9,6 +10,7 @@ import {
   parseISO,
   startOfMonth,
   startOfWeek,
+  subDays,
   subMonths,
 } from 'date-fns';
 import type { CalendarEvent } from '../../types';
@@ -89,6 +91,16 @@ export function getNextMonth(date: Date): Date {
 /** Returns a date anchored in the month preceding `date`'s month. */
 export function getPreviousMonth(date: Date): Date {
   return subMonths(date, 1);
+}
+
+/** Returns the day following `date`. */
+export function getNextDay(date: Date): Date {
+  return addDays(date, 1);
+}
+
+/** Returns the day preceding `date`. */
+export function getPreviousDay(date: Date): Date {
+  return subDays(date, 1);
 }
 
 /** Whether `a` and `b` fall on the same calendar day, in local time. */

@@ -13,6 +13,7 @@ import { FormField } from '../../components/FormField';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { createEvent, deleteEvent, selectEventItems, updateEvent } from './eventsSlice';
 import { toLocalISOString } from '../calendar/dateUtils';
+import { defaultStartAndEnd } from './eventDefaults';
 import { categoryColors, categoryColorsTint, colors, radius, shadows, spacing } from '../../theme';
 import { EVENT_CATEGORIES, type EventCategory } from '../../types';
 import type { CalendarStackParamList } from '../../navigation/CalendarNavigator';
@@ -34,32 +35,11 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 
 type Props = NativeStackScreenProps<CalendarStackParamList, 'EventForm'>;
 
-/** Now, rounded up to the top of the next hour. */
-function nextRoundHour(): Date {
-  const rounded = new Date();
-  rounded.setMinutes(0, 0, 0);
-  rounded.setHours(rounded.getHours() + 1);
-  return rounded;
-}
-
-/**
- * Defaults for a brand-new event: `day`'s date (if given, e.g. the day
- * selected on the calendar) combined with the next round hour from now,
- * ending an hour after that.
- */
-function defaultStartAndEnd(day?: Date): { startsAt: Date; endsAt: Date } {
-  const time = nextRoundHour();
-  const startsAt = day
-    ? new Date(day.getFullYear(), day.getMonth(), day.getDate(), time.getHours(), 0, 0, 0)
-    : time;
-  const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
-  return { startsAt, endsAt };
-}
-
 export function EventFormScreen({ navigation, route }: Props) {
   const dispatch = useAppDispatch();
   const eventId = route.params?.eventId;
   const defaultDay = route.params?.date ? parseISO(route.params.date) : undefined;
+  const defaultHour = route.params?.hour;
 
   const user = useAppSelector((state) => state.auth.user);
   const items = useAppSelector(selectEventItems);
@@ -86,7 +66,7 @@ export function EventFormScreen({ navigation, route }: Props) {
           startsAt: parseISO(existingEvent.startsAt),
           endsAt: parseISO(existingEvent.endsAt),
         }
-      : { title: '', notes: '', category: 'other', ...defaultStartAndEnd(defaultDay) },
+      : { title: '', notes: '', category: 'other', ...defaultStartAndEnd(defaultDay, defaultHour) },
   });
 
   /**
