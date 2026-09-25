@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { format, parseISO } from 'date-fns';
 import { categoryColors, colors, radius, shadows, spacing } from '../../theme';
+import { eventStartsBeforeDay, formatEventTimeRange } from './dateUtils';
 import type { CalendarEvent } from '../../types';
 
 export interface DayViewProps {
@@ -43,7 +44,7 @@ export function DayView({ day, events, onSelectEvent, onCreate }: DayViewProps) 
       ) : (
         <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
           {sortedEvents.map((event) => (
-            <EventRow key={event.id} event={event} onPress={onSelectEvent} />
+            <EventRow key={event.id} event={event} day={day} onPress={onSelectEvent} />
           ))}
         </ScrollView>
       )}
@@ -53,22 +54,33 @@ export function DayView({ day, events, onSelectEvent, onCreate }: DayViewProps) 
 
 interface EventRowProps {
   event: CalendarEvent;
+  /** The day being listed - decides whether the event is continuing into it. */
+  day: Date;
   onPress: (id: string) => void;
 }
 
-function EventRow({ event, onPress }: EventRowProps) {
-  const timeRange = `${format(parseISO(event.startsAt), 'h:mm a')} – ${format(
-    parseISO(event.endsAt),
-    'h:mm a',
-  )}`;
+function EventRow({ event, day, onPress }: EventRowProps) {
+  // An event that began on an earlier day keeps its real start, with that
+  // day's date, e.g. "Thu Sep 25, 8:00 PM – 1:00 AM".
+  const timeRange = formatEventTimeRange(event, day);
+  const continuedFrom = eventStartsBeforeDay(event, day)
+    ? format(parseISO(event.startsAt), 'EEEE')
+    : null;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${event.title}, ${timeRange}`}
+      accessibilityLabel={
+        continuedFrom
+          ? `${event.title}, ${timeRange}, continued from ${continuedFrom}`
+          : `${event.title}, ${timeRange}`
+      }
       onPress={() => onPress(event.id)}
       style={[styles.row, shadows.card, { borderLeftColor: categoryColors[event.category] }]}
     >
+      {continuedFrom ? (
+        <Text style={styles.rowContinued}>{`Continued from ${continuedFrom}`}</Text>
+      ) : null}
       <View style={styles.rowMain}>
         <Text style={styles.rowTitle} numberOfLines={1}>
           {event.title}
@@ -125,6 +137,12 @@ const styles = StyleSheet.create({
   rowTime: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+  rowContinued: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   rowNotes: {
     fontSize: 13,

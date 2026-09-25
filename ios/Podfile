@@ -1,5 +1,3 @@
-$RNFirebaseDisableSPM = true
-
 # Resolve react_native_pods.rb with node to allow for hoisting
 require Pod::Executable.execute_command('node', ['-p',
   'require.resolve(
@@ -17,7 +15,10 @@ if linkage != nil
 end
 
 target 'CalendarTask' do
-    use_modular_headers!
+  # React Native Firebase resolves the Firebase iOS SDK through Swift Package
+  # Manager, which requires dynamic frameworks (it rejects static linkage).
+  use_frameworks! :linkage => :dynamic
+
   config = use_native_modules!
 
   use_react_native!(

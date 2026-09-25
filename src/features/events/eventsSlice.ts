@@ -1,7 +1,13 @@
 import { createAsyncThunk, createSelector, createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { isSameMonth, parseISO } from 'date-fns';
-import { eventRepository, type NewEventInput } from './eventRepository';
-import { getEventsForDay, toDayKey } from '../calendar/dateUtils';
+import { addMonths, isSameMonth, startOfMonth } from 'date-fns';
+import type { NewEventInput } from './eventRepository';
+import { eventRepository } from '../../app/repositories';
+import {
+  getEventDays,
+  getEventInterval,
+  getEventsForDay,
+  toDayKey,
+} from '../calendar/dateUtils';
 import { EVENT_CATEGORIES, type CalendarEvent, type EventCategory } from '../../types';
 import type { RootState } from '../../app/store';
 
@@ -145,14 +151,33 @@ export const selectEventsForDay = createSelector(
   (items, day) => getEventsForDay(day, items),
 );
 
-/** Events whose `startsAt` falls within `month` (the calendar month currently on screen). */
+/**
+ * Events overlapping `month` (the calendar month currently on screen) at
+ * any point - including ones that start in the previous month and run
+ * into it. Same overlap rule as `getEventsForDay`.
+ */
 function eventsInMonth(items: CalendarEvent[], month: Date): CalendarEvent[] {
-  return items.filter((event) => isSameMonth(parseISO(event.startsAt), month));
+  const monthStart = startOfMonth(month);
+  const nextMonthStart = addMonths(monthStart, 1);
+  return items.filter((event) => {
+    const { start, end } = getEventInterval(event);
+    return start < nextMonthStart && end > monthStart;
+  });
 }
 
 /**
- * Event count per day (keyed via `toDayKey`) for events falling within
- * `month`. Used to render presence dots/labels in the month grid without
+ * Keys (`toDayKey`) of the days within `month` that `event` overlaps, so a
+ * multi-day event is counted on each of its days, not just its first.
+ */
+function dayKeysInMonth(event: CalendarEvent, month: Date): string[] {
+  return getEventDays(event)
+    .filter((day) => isSameMonth(day, month))
+    .map(toDayKey);
+}
+
+/**
+ * Event count per day (keyed via `toDayKey`) for the days of `month`,
+ * counting a multi-day event on every day it overlaps. Used to render presence dots/labels in the month grid without
  * handing the grid raw event objects.
  */
 export const selectEventCountsByDayForMonth = createSelector(
@@ -161,8 +186,9 @@ export const selectEventCountsByDayForMonth = createSelector(
     const counts = new Map<string, number>();
 
     for (const event of eventsInMonth(items, month)) {
-      const key = toDayKey(parseISO(event.startsAt));
-      counts.set(key, (counts.get(key) ?? 0) + 1);
+      for (const key of dayKeysInMonth(event, month)) {
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
     }
 
     return counts;
@@ -180,10 +206,11 @@ export const selectEventCategoriesByDayForMonth = createSelector(
     const categoriesByDay = new Map<string, Set<EventCategory>>();
 
     for (const event of eventsInMonth(items, month)) {
-      const key = toDayKey(parseISO(event.startsAt));
-      const categoriesForDay = categoriesByDay.get(key) ?? new Set<EventCategory>();
-      categoriesForDay.add(event.category);
-      categoriesByDay.set(key, categoriesForDay);
+      for (const key of dayKeysInMonth(event, month)) {
+        const categoriesForDay = categoriesByDay.get(key) ?? new Set<EventCategory>();
+        categoriesForDay.add(event.category);
+        categoriesByDay.set(key, categoriesForDay);
+      }
     }
 
     const result = new Map<string, EventCategory[]>();
@@ -209,7 +236,7 @@ export interface EventStats {
 }
 
 /**
- * Summary counts for the profile screen: all events, events starting in
+ * Summary counts for the profile screen: all events, events overlapping
  * `month`, and the earliest start. `startsAt` strings share one fixed
  * local-ISO format (see CalendarEvent), so they order correctly as plain
  * strings without parsing each one.

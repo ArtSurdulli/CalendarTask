@@ -8,6 +8,7 @@ import {
   isSameDay,
   isSameMonth,
   parseISO,
+  startOfDay,
   startOfMonth,
   startOfWeek,
   subDays,
@@ -108,12 +109,68 @@ export function isSameCalendarDay(a: Date, b: Date): boolean {
   return isSameDay(a, b);
 }
 
-/** Returns the events from `events` whose `startsAt` falls on `day`. */
+/**
+ * An event's time span as a half-open interval [start, end), in local
+ * time. An event whose end isn't after its start (zero-length, or bad
+ * data) is treated as an instant at its start, so it still belongs to
+ * the day it starts on.
+ */
+export function getEventInterval(event: CalendarEvent): { start: Date; end: Date } {
+  const start = parseISO(event.startsAt);
+  const end = parseISO(event.endsAt);
+  return { start, end: end > start ? end : new Date(start.getTime() + 1) };
+}
+
+/**
+ * Whether `event` belongs on `day`: its [start, end) interval intersects
+ * the day's [00:00, next 00:00). So an event running 20:00-01:00 belongs
+ * to both days, while one ending exactly at midnight belongs only to the
+ * day it started on.
+ */
+export function eventOverlapsDay(event: CalendarEvent, day: Date): boolean {
+  const { start, end } = getEventInterval(event);
+  const dayStart = startOfDay(day);
+  return start < addDays(dayStart, 1) && end > dayStart;
+}
+
+/** Every local calendar day `event` overlaps, in order (see `eventOverlapsDay`). */
+export function getEventDays(event: CalendarEvent): Date[] {
+  const { start, end } = getEventInterval(event);
+  // The last moment of a half-open interval is 1ms before `end` - which
+  // is what keeps an event ending at exactly midnight off the next day.
+  const lastDay = startOfDay(new Date(end.getTime() - 1));
+  return eachDayOfInterval({ start: startOfDay(start), end: lastDay });
+}
+
+/** Whether `event` started on a day before `day`, i.e. is continuing into it. */
+export function eventStartsBeforeDay(event: CalendarEvent, day: Date): boolean {
+  return parseISO(event.startsAt) < startOfDay(day);
+}
+
+/**
+ * The event's time range as shown on `day`: times alone for the parts on
+ * `day` itself, and weekday + date added to a start before it or an end
+ * after it - e.g. "Thu Sep 25, 8:00 PM – 1:00 AM" viewed on the 26th. An
+ * end at exactly the following midnight reads as "12:00 AM", no date.
+ */
+export function formatEventTimeRange(event: CalendarEvent, day: Date): string {
+  const start = parseISO(event.startsAt);
+  const end = parseISO(event.endsAt);
+  const dayStart = startOfDay(day);
+  const nextDayStart = addDays(dayStart, 1);
+  const withDate = 'EEE MMM d, h:mm a';
+
+  const startLabel = format(start, start < dayStart ? withDate : 'h:mm a');
+  const endLabel = format(end, end > nextDayStart ? withDate : 'h:mm a');
+  return `${startLabel} – ${endLabel}`;
+}
+
+/** Returns the events from `events` that overlap `day` (see `eventOverlapsDay`). */
 export function getEventsForDay(
   day: Date,
   events: CalendarEvent[],
 ): CalendarEvent[] {
-  return events.filter((event) => isSameDay(parseISO(event.startsAt), day));
+  return events.filter((event) => eventOverlapsDay(event, day));
 }
 
 /**
