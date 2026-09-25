@@ -117,9 +117,16 @@ export function MonthGrid({
     setContainerWidth(event.nativeEvent.layout.width);
   }, []);
 
-  const cellSize = containerWidth / CALENDAR_COLUMNS;
-  const gridHeight = cellSize * MAX_CALENDAR_ROWS;
-  const { cells } = getMonthGrid(month);
+  // Only drives heights (square-ish rows) and the badge size. Widths are
+  // left to flex: seven `flex: 1` cells per row split the row exactly,
+  // remainder included, so rounding can never push a column out of the row.
+  const cellWidth = containerWidth / CALENDAR_COLUMNS;
+  const rowHeight = Math.max(cellWidth, MIN_TOUCH_TARGET);
+  const gridHeight = rowHeight * MAX_CALENDAR_ROWS;
+  const { cells, rows } = getMonthGrid(month);
+  const weeks = Array.from({ length: rows }, (_, week) =>
+    cells.slice(week * CALENDAR_COLUMNS, (week + 1) * CALENDAR_COLUMNS),
+  );
 
   return (
     <View>
@@ -132,7 +139,7 @@ export function MonthGrid({
       </View>
 
       {/*
-        Fixed at MAX_CALENDAR_ROWS * cellHeight regardless of how many
+        Fixed at MAX_CALENDAR_ROWS * rowHeight regardless of how many
         rows this particular month needs, so paging between a 4-row and a
         6-row month never shifts surrounding layout - short months just
         leave blank space at the bottom. Clips the sliding grid so it never
@@ -142,22 +149,26 @@ export function MonthGrid({
         style={[styles.gridViewport, containerWidth > 0 && { height: gridHeight }]}
         onLayout={handleLayout}
       >
-        <Animated.View style={[styles.grid, transitionStyle]}>
+        <Animated.View style={transitionStyle}>
           {containerWidth > 0 &&
-            cells.map((cell) => {
-              const dayKey = toDayKey(cell.date);
-              return (
-                <DayCell
-                  key={dayKey}
-                  cell={cell}
-                  size={cellSize}
-                  isSelected={isSameCalendarDay(cell.date, selectedDay)}
-                  eventCount={eventCountsByDay?.get(dayKey) ?? 0}
-                  categories={eventCategoriesByDay?.get(dayKey) ?? []}
-                  onPress={onSelectDay}
-                />
-              );
-            })}
+            weeks.map((week) => (
+              <View key={toDayKey(week[0].date)} style={[styles.weekRow, { height: rowHeight }]}>
+                {week.map((cell) => {
+                  const dayKey = toDayKey(cell.date);
+                  return (
+                    <DayCell
+                      key={dayKey}
+                      cell={cell}
+                      size={Math.min(cellWidth, rowHeight)}
+                      isSelected={isSameCalendarDay(cell.date, selectedDay)}
+                      eventCount={eventCountsByDay?.get(dayKey) ?? 0}
+                      categories={eventCategoriesByDay?.get(dayKey) ?? []}
+                      onPress={onSelectDay}
+                    />
+                  );
+                })}
+              </View>
+            ))}
         </Animated.View>
       </View>
     </View>
@@ -166,6 +177,7 @@ export function MonthGrid({
 
 interface DayCellProps {
   cell: CalendarDayCell;
+  /** Approximate cell size, for the badge only - the cell itself flexes. */
   size: number;
   isSelected: boolean;
   eventCount: number;
@@ -190,15 +202,7 @@ function DayCell({ cell, size, isSelected, eventCount, categories, onPress }: Da
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: isSelected }}
       onPress={() => onPress(date)}
-      style={[
-        styles.dayCell,
-        {
-          width: size,
-          height: size,
-          minWidth: MIN_TOUCH_TARGET,
-          minHeight: MIN_TOUCH_TARGET,
-        },
-      ]}
+      style={styles.dayCell}
     >
       <View style={styles.dayCellContent}>
         {isToday || isSelected ? (
@@ -260,11 +264,11 @@ const styles = StyleSheet.create({
   gridViewport: {
     overflow: 'hidden',
   },
-  grid: {
+  weekRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
   },
   dayCell: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
