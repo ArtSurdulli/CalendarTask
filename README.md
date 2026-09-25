@@ -32,28 +32,30 @@ Built and verified against:
 ## Setup
 
 ```
-git clone <repo-url>
+git clone https://github.com/ArtSurdulli/CalendarTask.git
 cd CalendarTask
 npm install
 cd ios && pod install && cd ..
 ```
 
-### Choose a backend first
+### Choose a backend
 
-The committed `ios/GoogleService-Info.plist` points at the author's Firebase project, so with
-the default setting the app talks to a project you don't control.
-
-**Quickest route: run entirely on-device.** Open `src/config.ts` and set:
+**Recommended for reviewers: run locally.** Open `src/config.ts` and set:
 
 ```ts
 export const USE_FIREBASE = false;
 ```
 
-Accounts and events are then stored in AsyncStorage on the simulator, with no Firebase project,
-console setup or network backend involved. Leave `GoogleService-Info.plist` in place: the app
-still calls `FirebaseApp.configure()` at launch, and that call needs the file.
+Accounts and events are then stored in AsyncStorage on the simulator. There is no external
+setup, and nothing you create lands in anyone else's Firebase project. Leave
+`ios/GoogleService-Info.plist` in place: the app still calls `FirebaseApp.configure()` at launch,
+and that call needs the file.
 
-**Or use your own Firebase project** and keep `USE_FIREBASE = true`:
+**The Firebase path.** The repository ships with `USE_FIREBASE = true` and a committed
+`ios/GoogleService-Info.plist` for the author's Firebase project: the configuration the app was
+built and run against with Firebase Authentication and Cloud Firestore as its backend. Left as
+is, sign-ups and events go to that project. To run the Firebase path against your own project
+instead:
 
 1. In the Firebase console, add an iOS app with the bundle ID
    `org.reactjs.native.example.CalendarTask`.
