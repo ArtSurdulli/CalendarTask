@@ -35,8 +35,6 @@
 	</dict>
 	<key>NSFaceIDUsageDescription</key>
 	<string>CalendarTask uses Face ID to let you sign back in quickly without retyping your password.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
