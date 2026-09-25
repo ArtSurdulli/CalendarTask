@@ -106,6 +106,7 @@ export function CalendarScreen({ navigation }: Props) {
         events={dayEvents}
         onSelectEvent={goToEditEvent}
         onCreate={goToAddEventAtHour}
+        onShowDayEvents={() => changeViewMode('month')}
       />
     );
 
