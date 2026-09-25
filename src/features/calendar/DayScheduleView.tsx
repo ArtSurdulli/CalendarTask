@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { format, parseISO } from 'date-fns';
+import { addDays, format, parseISO, startOfDay } from 'date-fns';
 import { categoryColors, categoryColorsTint, colors, radius, spacing } from '../../theme';
+import { eventStartsBeforeDay, formatEventTimeRange, getEventInterval } from './dateUtils';
 import type { CalendarEvent } from '../../types';
 
 export interface DayScheduleViewProps {
@@ -56,7 +57,7 @@ export function DayScheduleView({
     scrollRef.current?.scrollTo({ y: INITIAL_SCROLL_HOUR * HOUR_HEIGHT, animated: false });
   }, [day]);
 
-  const laidOutEvents = layoutEvents(events);
+  const laidOutEvents = layoutEvents(events, day);
 
   return (
     <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content}>
@@ -81,7 +82,13 @@ export function DayScheduleView({
             const [event] = block.events;
             const hiddenCount = block.events.length - 1;
             const isCollapsed = hiddenCount > 0;
-            const eventLabel = `${event.title}, ${formatTimeRange(event)}`;
+            const continuesFromEarlierDay = eventStartsBeforeDay(event, day);
+            const eventLabel = continuesFromEarlierDay
+              ? `${event.title}, ${formatEventTimeRange(event, day)}, continued from ${format(
+                  parseISO(event.startsAt),
+                  'EEEE',
+                )}`
+              : `${event.title}, ${formatEventTimeRange(event, day)}`;
 
             return (
               <Pressable
@@ -104,8 +111,16 @@ export function DayScheduleView({
                     backgroundColor: categoryColorsTint[event.category],
                     borderLeftColor: categoryColors[event.category],
                   },
+                  // Square top edge: the event runs on from above the
+                  // schedule's first hour.
+                  continuesFromEarlierDay && styles.eventBlockContinued,
                 ]}
               >
+                {continuesFromEarlierDay ? (
+                  <Text style={styles.eventBlockContinuedLabel} numberOfLines={1}>
+                    {`From ${format(parseISO(event.startsAt), 'EEE h:mm a')}`}
+                  </Text>
+                ) : null}
                 <Text style={styles.eventBlockTitle} numberOfLines={2} ellipsizeMode="tail">
                   {event.title}
                 </Text>
@@ -123,10 +138,6 @@ export function DayScheduleView({
 
 function formatHourLabel(hour: number): string {
   return format(new Date(2000, 0, 1, hour), 'h a');
-}
-
-function formatTimeRange(event: CalendarEvent): string {
-  return `${format(parseISO(event.startsAt), 'h:mm a')} – ${format(parseISO(event.endsAt), 'h:mm a')}`;
 }
 
 interface TimedEvent {
@@ -190,16 +201,23 @@ function toBlock(items: TimedEvent[], column: number, totalColumns: number): Lai
  * collapse into one "+N" block; one that overlaps nothing else in those
  * columns is still drawn on its own.
  */
-function layoutEvents(events: CalendarEvent[]): LaidOutEvent[] {
+function layoutEvents(events: CalendarEvent[], day: Date): LaidOutEvent[] {
+  const dayStart = startOfDay(day);
+  const nextDayStart = addDays(dayStart, 1);
+
   const timed: TimedEvent[] = events
     .map((event) => {
-      const start = Math.max(0, minutesFromMidnight(parseISO(event.startsAt)));
-      const rawEnd = minutesFromMidnight(parseISO(event.endsAt));
-      // An end at exactly midnight reads as minute 0 - treat that (and any
-      // other non-positive span) as running to the end of the day instead
-      // of collapsing to zero height.
-      const end = rawEnd > start ? Math.min(MINUTES_IN_DAY, rawEnd) : MINUTES_IN_DAY;
-      return { event, start, end };
+      const interval = getEventInterval(event);
+      // Clamped to `day`: an event that began on an earlier day starts at
+      // the top, and one running past midnight (or ending exactly at it)
+      // ends at the bottom. Wall-clock minutes, so DST days still line up
+      // with the hour labels.
+      const start = interval.start < dayStart ? 0 : minutesFromMidnight(interval.start);
+      const end =
+        interval.end >= nextDayStart ? MINUTES_IN_DAY : minutesFromMidnight(interval.end);
+      // A zero-length event still gets a minute, so it takes part in the
+      // overlap columns like any other.
+      return { event, start, end: Math.max(end, start + 1) };
     })
     .sort((a, b) => a.start - b.start || a.end - b.end);
 
@@ -291,6 +309,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     justifyContent: 'center',
+  },
+  eventBlockContinued: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+  },
+  eventBlockContinuedLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
   },
   eventBlockTitle: {
     fontSize: 12,

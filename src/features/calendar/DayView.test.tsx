@@ -98,3 +98,37 @@ describe('DayView', () => {
     expect(screen.queryByRole('button', { name: 'Add event' })).not.toBeOnTheScreen();
   });
 });
+
+describe('DayView with an event continuing from an earlier day', () => {
+  const lateShow = makeEvent({
+    id: 'late-show',
+    title: 'Late show',
+    startsAt: '2023-10-14T20:00:00',
+    endsAt: '2023-10-15T01:00:00',
+  });
+
+  test('marks it as continuing and shows its real, dated start time', () => {
+    renderDayView([lateShow]);
+
+    expect(screen.getByText('Continued from Saturday')).toBeOnTheScreen();
+    expect(screen.getByText('Sat Oct 14, 8:00 PM – 1:00 AM')).toBeOnTheScreen();
+    expect(
+      screen.getByLabelText('Late show, Sat Oct 14, 8:00 PM – 1:00 AM, continued from Saturday'),
+    ).toBeOnTheScreen();
+  });
+
+  test('lists it before events that start on the day itself', () => {
+    renderDayView([makeEvent({ id: 'gym', title: 'Gym', startsAt: '2023-10-15T07:00:00' }), lateShow]);
+
+    expect(screen.getAllByRole('button').map((row) => row.props.accessibilityLabel)).toEqual([
+      'Late show, Sat Oct 14, 8:00 PM – 1:00 AM, continued from Saturday',
+      'Gym, 7:00 AM – 10:00 AM',
+    ]);
+  });
+
+  test('does not mark events that start on the day itself', () => {
+    renderDayView([makeEvent({ id: 'gym', title: 'Gym', startsAt: '2023-10-15T07:00:00' })]);
+
+    expect(screen.queryByText(/^Continued from/)).not.toBeOnTheScreen();
+  });
+});
