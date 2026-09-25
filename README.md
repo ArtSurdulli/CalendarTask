@@ -1,14 +1,17 @@
 # CalendarTask
 
-## Overview
+CalendarTask is a React Native (bare CLI) calendar app. Users sign up and sign in with email and
+password, and can optionally unlock with Face ID or Touch ID. The calendar has a month grid, with
+a list of the selected day's events below it, and an hour-by-hour day schedule. Events can be
+created, edited and deleted, each with a title, notes, a start and end time, and one of five
+categories (work, personal, health, social, other). A profile tab shows the account, a biometric
+sign-in toggle, simple event statistics and sign-out. There is no server: accounts and events
+are stored on the device, per user, behind repository interfaces that are the swap point for a
+real backend.
 
-CalendarTask is a React Native (bare CLI) take-home app: email/password auth with optional
-Face ID/Touch ID unlock, and a custom month-grid and day-view calendar for creating, editing,
-and deleting categorized events, all scoped per signed-in user. There is no backend — auth and
-events are persisted locally on-device, behind repository interfaces designed as the swap point
-for a real API.
+## Versions
 
-## Versions this was built and verified against
+Built and verified against:
 
 - React Native 0.84.0
 - Node v22.23.1
@@ -32,128 +35,203 @@ Start Metro in one terminal:
 npm start
 ```
 
-Then, in a second terminal, build and run on the simulator:
+Then build and run on the simulator from a second terminal:
 
 ```
-npx react-native run-ios --simulator="iPhone 17 Pro"
+npm run ios
 ```
 
-(`npm run ios` also works if a simulator is already booted; the flag above just pins the device.)
+`npm run ios` runs `react-native run-ios`. To pick a specific simulator, pass it through, e.g.
+`npm run ios -- --simulator="iPhone 17 Pro"`.
 
-There is no seeded account. On first launch you land on the sign-up/login screen and create an
-account yourself — it's stored locally, so it only exists on that install.
+There is no seeded account. On first launch, create one from the sign-up screen. It is stored
+locally, so it exists only on that install.
 
 ## Architecture
 
-The app is organized by feature, not by file type:
+The code is organised by feature rather than by file type:
 
 ```
 src/
-  app/          Redux store + typed hooks
+  app/          Redux store, typed hooks, useReduceMotion
   components/   shared UI (FormField)
   features/
     auth/       authRepository, biometricRepository, authSlice, Login/SignUp/Unlock screens
-    calendar/   dateUtils, MonthGrid, DayView, CalendarScreen
-    events/     eventRepository, eventsSlice, EventFormScreen
+    calendar/   dateUtils, MonthGrid, DayView, DayScheduleView, CalendarScreen
+    events/     eventRepository, eventsSlice, eventDefaults, EventFormScreen
     profile/    ProfileScreen
-  navigation/   Auth/Calendar/App/Root navigators
-  theme/        colors, spacing, radius, category colors, shadows
+  navigation/   root, auth, tab and calendar navigators; stack animation options
+  theme/        colours, spacing, radius, category colours, shadows, motion
   types/        User, CalendarEvent, EventCategory
 ```
 
-**Repository pattern.** `authRepository.ts` and `eventRepository.ts` are the only files
-allowed to import AsyncStorage directly. Everything else — screens, Redux slices — talks to
-them only through their exported interface (`AuthRepository`, `EventRepository`). This is the
-documented swap point for a real backend: replacing local persistence with HTTP calls to an API
-means rewriting these two files and nothing else. `biometricRepository.ts` follows the same
-rule for react-native-keychain.
+**Repository pattern.** Persistence sits behind two interfaces, `AuthRepository`
+(`features/auth/authRepository.ts`) and `EventRepository` (`features/events/eventRepository.ts`).
+Their implementations are the only files in `src/` that import AsyncStorage; screens and Redux
+slices use the interfaces. The point is a single swap point per repository: moving to a real
+backend means replacing each implementation file, without touching screens or state.
+`biometricRepository.ts` applies the same rule to `react-native-keychain`: it is the only file
+that imports it.
 
-**State.** Redux Toolkit, one slice per feature (`authSlice`, `eventsSlice`), each with
-`createAsyncThunk` thunks that call into the repository layer and plain `idle`/`loading` status
-plus an `error` string. Selectors (e.g. `selectEventsForDay`, `selectEventCountsByDayForMonth`)
-are memoized with `createSelector`.
+**State.** Redux Toolkit, with one slice per feature (`authSlice`, `eventsSlice`). Async work
+goes through `createAsyncThunk` thunks that call the repositories. Derived data, such as events
+for a day, per-day event counts and categories for a month, and the profile statistics, comes
+from memoised `createSelector` selectors.
 
-**MonthGrid and DayView are presentational.** Neither imports `react-redux` or touches the
-store; both take everything they render as props from `CalendarScreen`, which owns the
-connected state. This was a deliberate constraint kept throughout the build, not an accident of
-how the code happened to end up.
+**Presentational components.** `MonthGrid`, `DayView` and `DayScheduleView` have no store
+access; none of them imports `react-redux` or the app's store hooks. They render what they are
+given as props and report taps through callbacks. `CalendarScreen` is the connected component
+that reads the store and passes data down.
 
 ## Calendar implementation
 
-The month grid and day view are built from scratch — no third-party calendar library. All the
-date math lives in `src/features/calendar/dateUtils.ts` as pure functions (no React, no Redux),
-covered by their own Jest tests.
+The calendar is built from scratch, with no third-party calendar library. Date logic lives in
+`src/features/calendar/dateUtils.ts` as pure functions with no React or Redux dependencies,
+covered by their own tests.
 
-The grid is not a fixed six rows. `getMonthGrid` spans from the Monday of the week containing
-the 1st of the month to the Sunday of the week containing the last day, so a month renders as
-exactly the 4, 5, or 6 rows it needs (e.g. February 2027 is 4 rows with no out-of-month
-padding; October 2023 is 6). A `MAX_CALENDAR_ROWS` constant is exported separately for screens
-that want a fixed-height layout regardless of which month is showing.
+**Variable row count.** Weeks start on Monday. `getMonthGrid` runs from the Monday of the week
+containing the 1st to the Sunday of the week containing the last day, so a month has exactly the
+4, 5 or 6 rows it needs rather than a forced six. For example, February 2027 is 4 rows and
+October 2023 is 6. `MonthGrid` renders only those rows, but reserves the height of six
+(`MAX_CALENDAR_ROWS`) so that moving between months doesn't shift the layout below it. Each week
+is its own row of seven flexible cells, so the columns always divide the available width
+exactly.
 
-All date handling is local-time only. Event timestamps (`CalendarEvent.startsAt`/`endsAt`) are
-stored as ISO strings *without* a UTC offset or `Z` suffix, so `date-fns`'s `parseISO` reads
-them back as local wall-clock time instead of shifting across a day boundary on parse.
-`toLocalISOString` (also in `dateUtils.ts`) is the single sanctioned way to turn a `Date` into
-that stored string — `Date#toISOString` is never used for this anywhere in the app, since it
-converts to UTC and can land an event on the wrong calendar day near midnight.
+**Month and day views.** A Month/Day switch sits under the header. Month view shows the grid,
+with category dots on days that have events, and the selected day's event list underneath. Day
+view is an hour-by-hour schedule from 12 AM to 11 PM with half-hour dividers. Tapping an empty
+hour starts a new event at that hour. The header arrows move by month or by day depending on
+the view.
+
+**Overlapping events.** In the day schedule, events that overlap in time are laid out side by
+side in evenly split columns. The split is capped at four columns. Past that, the remaining
+concurrent events collapse into the fourth column as a single block showing the first event and
+a "+N" count. Tapping that block switches to Month view, where the day's full event list is
+shown.
+
+**Local wall-clock times.** `CalendarEvent.startsAt` and `endsAt` are ISO 8601 strings without a
+UTC offset or `Z` suffix, e.g. `2026-09-23T14:00:00`. `date-fns`'s `parseISO` reads them back as
+local time, so an event stays on the calendar day it was created on. `toLocalISOString` in
+`dateUtils.ts` is the single sanctioned way to produce these strings from a `Date`.
+`Date#toISOString` is not used anywhere in `src/`, because it converts to UTC and can move an
+event onto the wrong day near midnight.
 
 ## Biometrics
 
-Enabling Face ID/Touch ID stores the user's credentials in the Keychain
-(`biometricRepository.ts`) with `accessControl: BIOMETRY_CURRENT_SET`. This matters: it means
-the entry invalidates itself if the user enrols a new face or fingerprint, rather than silently
-staying valid for whatever biometry happens to be on the device at the time it's read.
+Enabling Face ID or Touch ID stores the user's credentials in the iOS Keychain
+(`biometricRepository.ts`), with `accessControl: BIOMETRY_CURRENT_SET` and
+`accessible: WHEN_UNLOCKED_THIS_DEVICE_ONLY`. `BIOMETRY_CURRENT_SET` means the entry becomes
+invalid if the user enrols a new face or fingerprint, rather than staying readable by whatever
+biometry is enrolled at the time. Enabling biometrics from the profile screen asks for the
+password again first, so a mistyped password is caught immediately instead of being stored and
+failing later.
 
-Unlock is user-initiated, not automatic. On launch, if a biometric credential exists and no
-session is active, the app shows an unlock screen with a "Use Face ID" button rather than
-firing the OS prompt immediately — an unprompted system dialog on cold start is disorienting,
-and the password form is always one tap away as a fallback.
+Unlock is user-initiated. When a biometric credential exists and there is no active session, the
+app opens on an unlock screen with a "Use Face ID" button rather than firing the system prompt
+straight away. A system dialog appearing unprompted on cold start is disorienting, and the
+password form is always one tap away through "Use password instead".
+
+## Animations
+
+Transitions are set explicitly rather than left to library defaults:
+
+- **Stack pushes**, in the auth and calendar stacks: a horizontal slide from the right.
+- **Event form**: presented as a modal that slides up from the bottom.
+- **Tab switches** between Calendar and Profile: a 200 ms cross-fade.
+- **Month changes** in the grid: the new month slides in from the direction of travel and fades
+  in over 250 ms.
+- **Month/Day switch**: a 200 ms cross-fade.
+
+Durations come from the `motion` tokens in `src/theme/motion.ts`. Reduce Motion is respected
+through `AccessibilityInfo` in `src/app/useReduceMotion.ts`. The hook reads the setting at
+startup and then subscribes to changes, so turning it on while the app is running takes effect
+immediately. When it is on, every transition above is instant.
+
+iOS platform limits:
+
+- **Pushes.** The standard `slide_from_right` push resolves to the native UIKit transition, whose
+  duration (about 350 ms) cannot be changed. The stacks use `simple_push` on iOS instead, which
+  is the same right-to-left slide but accepts a 250 ms duration.
+- **Modals.** Screens presented with `presentation: 'modal'` always use the system sheet
+  animation, which has a fixed duration.
+- **Android.** `animationDuration` is ignored on Android, so its transitions use platform timing.
+
+## Accessibility
+
+Interactive elements carry accessibility labels, roles and states throughout: each calendar day
+is announced with its full date and event count, marked "today" where it applies, and reports
+whether it is selected. Event blocks read out their title and time range, and switches and
+buttons report their disabled state. Form errors are announced as alerts. Most touch targets are
+at least 44 pt.
+
+The component tests query what a screen-reader user would find, by accessibility label, role
+and state (for example `getByLabelText`, `getByRole('button', { selected: true })`), rather than
+by test IDs. The app code sets test IDs only where there is no accessible content to query: the
+decorative category dots, and the grid container whose layout pass the tests trigger. The
+cross-fade hook's test adds its own to the small harness it renders.
 
 ## Known limitations
 
-- The local repositories are a mock backend for this exercise, not a production auth/data
-  layer.
-- Passwords are stored unhashed in AsyncStorage, and AsyncStorage itself is not encrypted at
-  rest. A real implementation would never store a password client-side at all — after sign-in
-  it would keep a refresh token in the Keychain instead, and biometric unlock would exchange
-  that token for a fresh session rather than replaying a password.
-- Events store local wall-clock time only (no UTC value, no IANA timezone id alongside it). An
-  event created while traveling, or shared across timezones, has no way to know which timezone
-  it was meant for.
+- The local repositories are a mock backend, not a production auth or data layer.
+- Passwords are stored unhashed in AsyncStorage, and AsyncStorage is not encrypted. The Keychain
+  entry for biometric unlock also holds the password. A real implementation would not keep a
+  password on the device at all: it would keep a refresh token in the Keychain, and biometric
+  unlock would exchange that token for a new session.
+- Events store local wall-clock time rather than a UTC instant plus an IANA timezone id. An
+  event has no record of the timezone it was created in, so travel or sharing across timezones
+  cannot be handled correctly.
+- iOS only. The app has been built and run only on the iOS simulator; Android is untested.
 
 ## Testing
 
 ```
-npm test
+npm test                    # run the suite
+npx jest --coverage         # with coverage
 ```
 
-48 tests across 5 suites, all passing:
+96 tests across 11 suites, all passing. Coverage is measured across all of `src/` (excluding
+test files), not only the files a test imports: 48% of statements.
 
-- `dateUtils.test.ts` (21) — the pure calendar functions: grid generation across
-  Sunday/Monday-start months, leap and non-leap Februaries, December→January rollover, month
-  navigation, same-day comparison, event-day filtering, local-ISO round-tripping, and day-key
-  generation.
-- `authSlice.test.ts` (12) — sign-in/sign-up/sign-out, biometric enrollment (including that a
-  wrong password never reaches the Keychain, and that a cancelled Face ID prompt is treated as
-  a normal outcome, not an error), and the enrollment-offer eligibility logic.
-- `eventsSlice.test.ts` (10) — create/update/delete reducers, the day and month selectors, and
-  a rejected-thunk error case.
-- `eventRepository.test.ts` (4) — event persistence, including that an event saved before the
-  category field existed reads back as `other` instead of breaking.
-- `App.test.tsx` (1) — smoke test that the full app tree renders.
+| Suite | Tests | Covers |
+| --- | --- | --- |
+| `dateUtils.test.ts` | 26 | Grid generation, 4/5/6-row months, leap years, year rollover, month and day navigation, local ISO round-tripping |
+| `authSlice.test.ts` | 12 | Sign-in, sign-up, sign-out, biometric enrolment (a wrong password never reaches the Keychain; a cancelled prompt is not an error) |
+| `eventsSlice.test.ts` | 13 | Create/update/delete, day and month selectors, profile statistics selector, error handling |
+| `eventRepository.test.ts` | 4 | Persistence, including backfilling events saved before categories existed |
+| `eventDefaults.test.ts` | 5 | Default start and end times for a new event, including midnight |
+| `MonthGrid.test.tsx` | 13 | Cell count per month, today and selected markers, category dots, day selection, column layout |
+| `DayView.test.tsx` | 6 | Sorting by start time, empty state and create action, event selection |
+| `DayScheduleView.test.tsx` | 6 | All 24 hour rows, creating at an hour, overlap columns and the four-column cap |
+| `useViewModeCrossFade.test.tsx` | 5 | Month/Day cross-fade: no flash, reversal mid-fade, no remounting, Reduce Motion |
+| `FormField.test.tsx` | 5 | Label, error alert, value and prop pass-through |
+| `App.test.tsx` | 1 | The full app tree renders |
+
+Well covered (over 80% of statements): the date utilities, the events slice and repository,
+the event defaults, the presentational calendar components, `FormField`, and the theme.
+
+Not covered:
+
+- **Screens:** Login, SignUp, Unlock, Calendar, EventForm and Profile, all under 12% of
+  statements.
+- **Storage wrappers:** the AsyncStorage auth repository and the Keychain biometric
+  repository, both under 10%.
+- **Navigators, `useReduceMotion`, and the stack animation options.**
+- **Auth slice:** about half its statements are covered.
+
+## Data layer
+
+Persistence sits behind `AuthRepository` and `EventRepository`. Firebase was the initial
+choice, but `@react-native-firebase/firestore` pulls in the Firebase iOS SDK, which depends on
+gRPC, and gRPC compiles from source and fails to generate a module map under
+`use_modular_headers!` with Xcode 26's clang. Neither `$RNFirebaseDisableSPM` nor modular
+headers resolved it. Because screens
+and Redux only depend on the interfaces, switching to local storage meant writing one
+implementation file per repository rather than rewriting the app, and a hosted backend can
+replace those files the same way.
 
 ## What I'd add next
 
-- An agenda view: upcoming events grouped by day with collapsible sections, as an alternative
-  to paging through the month grid one day at a time.
-- An app-lock layer that re-authenticates on foreground after a timeout, the way banking apps
-  do, rather than only gating the initial launch.
-- Android verification — this was built and tested exclusively against the iOS simulator; none
-  of it has been run on Android.
-
-## A note on Firebase
-
-Firebase was attempted first and dropped. The Firestore pod pulls in gRPC, which fails to build
-a module map under Xcode 26's clang. Rather than fight the build toolchain, the data layer was
-put behind the repository interfaces described above, so a real backend — Firebase or otherwise
-— can be swapped in later without touching the UI or Redux layers.
+- An agenda view listing upcoming events grouped by day.
+- An app-lock layer that re-authenticates when the app returns to the foreground after a
+  timeout, as banking apps do, rather than only at launch.
+- Android verification.
