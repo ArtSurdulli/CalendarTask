@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { authRepository, type SignInInput, type SignUpInput } from './authRepository';
+import type { SignInInput, SignUpInput } from './authRepository';
+import { authRepository } from '../../app/repositories';
 import { biometricRepository, type BiometryType } from './biometricRepository';
 import type { User } from '../../types';
 

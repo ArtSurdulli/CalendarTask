@@ -1,5 +1,6 @@
 module.exports = {
   preset: 'react-native',
+  setupFiles: ['<rootDir>/jest.setup.js'],
   // Measure all of src/, not just files some test happens to import, so
   // untested files count as 0% rather than being left out entirely.
   collectCoverageFrom: [

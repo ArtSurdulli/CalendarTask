@@ -2,6 +2,8 @@ import { parseISO } from 'date-fns';
 import type { CalendarEvent } from '../../types';
 import {
   CALENDAR_COLUMNS,
+  formatEventTimeRange,
+  getEventDays,
   getEventsForDay,
   getMonthGrid,
   getNextDay,
@@ -237,6 +239,97 @@ describe('getEventsForDay', () => {
   test('returns an empty array when nothing matches', () => {
     const events: CalendarEvent[] = [makeEvent('other-day', '2023-10-01T09:00:00')];
     expect(getEventsForDay(localDate(2023, 10, 15), events)).toEqual([]);
+  });
+
+  test('an event spanning midnight appears on both days', () => {
+    const lateShow = makeEvent('late-show', '2023-10-25T20:00:00', '2023-10-26T01:00:00');
+
+    expect(getEventsForDay(localDate(2023, 10, 25), [lateShow])).toEqual([lateShow]);
+    expect(getEventsForDay(localDate(2023, 10, 26), [lateShow])).toEqual([lateShow]);
+    expect(getEventsForDay(localDate(2023, 10, 24), [lateShow])).toEqual([]);
+    expect(getEventsForDay(localDate(2023, 10, 27), [lateShow])).toEqual([]);
+  });
+
+  test('an event spanning three days appears on all three, and no others', () => {
+    const conference = makeEvent('conference', '2023-10-30T09:00:00', '2023-11-01T17:00:00');
+
+    for (const day of [localDate(2023, 10, 30), localDate(2023, 10, 31), localDate(2023, 11, 1)]) {
+      expect(getEventsForDay(day, [conference])).toEqual([conference]);
+    }
+    expect(getEventsForDay(localDate(2023, 10, 29), [conference])).toEqual([]);
+    expect(getEventsForDay(localDate(2023, 11, 2), [conference])).toEqual([]);
+  });
+
+  test('an event ending exactly at midnight belongs to its start day only', () => {
+    const evening = makeEvent('evening', '2023-10-25T20:00:00', '2023-10-26T00:00:00');
+
+    expect(getEventsForDay(localDate(2023, 10, 25), [evening])).toEqual([evening]);
+    expect(getEventsForDay(localDate(2023, 10, 26), [evening])).toEqual([]);
+  });
+
+  test('an event starting exactly at midnight belongs to that day only', () => {
+    const early = makeEvent('early', '2023-10-26T00:00:00', '2023-10-26T01:00:00');
+
+    expect(getEventsForDay(localDate(2023, 10, 25), [early])).toEqual([]);
+    expect(getEventsForDay(localDate(2023, 10, 26), [early])).toEqual([early]);
+  });
+});
+
+describe('getEventDays', () => {
+  function makeEvent(startsAt: string, endsAt: string): CalendarEvent {
+    return { id: 'e', userId: 'user-1', title: 'E', category: 'other', startsAt, endsAt };
+  }
+
+  test('lists every day an event overlaps, across a month boundary', () => {
+    const days = getEventDays(makeEvent('2023-10-30T09:00:00', '2023-11-01T17:00:00'));
+
+    expect(days).toEqual([localDate(2023, 10, 30), localDate(2023, 10, 31), localDate(2023, 11, 1)]);
+  });
+
+  test('stops at the start day when the event ends exactly at midnight', () => {
+    expect(getEventDays(makeEvent('2023-10-25T20:00:00', '2023-10-26T00:00:00'))).toEqual([
+      localDate(2023, 10, 25),
+    ]);
+  });
+
+  test('a zero-length event belongs to its start day', () => {
+    expect(getEventDays(makeEvent('2023-10-25T09:00:00', '2023-10-25T09:00:00'))).toEqual([
+      localDate(2023, 10, 25),
+    ]);
+  });
+});
+
+describe('formatEventTimeRange', () => {
+  const lateShow: CalendarEvent = {
+    id: 'e',
+    userId: 'user-1',
+    title: 'Late show',
+    category: 'other',
+    startsAt: '2023-10-25T20:00:00',
+    endsAt: '2023-10-26T01:00:00',
+  };
+
+  test('shows plain times for the parts on the viewed day', () => {
+    expect(
+      formatEventTimeRange({ ...lateShow, endsAt: '2023-10-25T22:00:00' }, localDate(2023, 10, 25)),
+    ).toBe('8:00 PM – 10:00 PM');
+  });
+
+  test('dates the real start when the event began on an earlier day', () => {
+    expect(formatEventTimeRange(lateShow, localDate(2023, 10, 26))).toBe(
+      'Wed Oct 25, 8:00 PM – 1:00 AM',
+    );
+  });
+
+  test('dates the end when the event runs past the viewed day', () => {
+    expect(formatEventTimeRange(lateShow, localDate(2023, 10, 25))).toBe(
+      '8:00 PM – Thu Oct 26, 1:00 AM',
+    );
+  });
+
+  test('an end at exactly the next midnight reads as 12:00 AM, undated', () => {
+    const evening = { ...lateShow, endsAt: '2023-10-26T00:00:00' };
+    expect(formatEventTimeRange(evening, localDate(2023, 10, 25))).toBe('8:00 PM – 12:00 AM');
   });
 });
 

@@ -31,7 +31,9 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     title: 'Standup',
     category: 'other',
     startsAt: '2023-10-15T09:00:00',
-    endsAt: '2023-10-15T09:30:00',
+    // Overriding only `startsAt` must not leave the default end behind, or
+    // the event would silently span every day in between.
+    endsAt: overrides.startsAt ?? '2023-10-15T09:30:00',
     ...overrides,
   };
 }
@@ -270,5 +272,68 @@ describe('selectEventStats', () => {
     expect(selectEventStats(store.getState(), month)).toBe(
       selectEventStats(store.getState(), month),
     );
+  });
+});
+
+describe('multi-day events in the month selectors', () => {
+  async function storeWith(events: CalendarEvent[]) {
+    mockedRepository.listForUser.mockResolvedValue(events);
+    const store = createTestStore();
+    await store.dispatch(loadEvents('user-1'));
+    return store;
+  }
+
+  test('an event spanning midnight is counted, with its category, on both days', async () => {
+    const store = await storeWith([
+      makeEvent({
+        id: 'late-show',
+        category: 'social',
+        startsAt: '2023-10-25T20:00:00',
+        endsAt: '2023-10-26T01:00:00',
+      }),
+    ]);
+    const october = new Date(2023, 9, 1);
+
+    const counts = selectEventCountsByDayForMonth(store.getState(), october);
+    expect(counts.get('2023-10-25')).toBe(1);
+    expect(counts.get('2023-10-26')).toBe(1);
+    expect(counts.size).toBe(2);
+
+    const categories = selectEventCategoriesByDayForMonth(store.getState(), october);
+    expect(categories.get('2023-10-25')).toEqual(['social']);
+    expect(categories.get('2023-10-26')).toEqual(['social']);
+  });
+
+  test('an event crossing a month boundary is counted in each month on its own days', async () => {
+    const store = await storeWith([
+      makeEvent({ id: 'nye', startsAt: '2023-10-31T22:00:00', endsAt: '2023-11-01T02:00:00' }),
+    ]);
+
+    const october = selectEventCountsByDayForMonth(store.getState(), new Date(2023, 9, 1));
+    const november = selectEventCountsByDayForMonth(store.getState(), new Date(2023, 10, 1));
+
+    expect([...october.keys()]).toEqual(['2023-10-31']);
+    expect([...november.keys()]).toEqual(['2023-11-01']);
+  });
+
+  test('an event ending exactly at midnight is not counted on the next day', async () => {
+    const store = await storeWith([
+      makeEvent({ id: 'evening', startsAt: '2023-10-25T20:00:00', endsAt: '2023-10-26T00:00:00' }),
+    ]);
+
+    const counts = selectEventCountsByDayForMonth(store.getState(), new Date(2023, 9, 1));
+
+    expect([...counts.keys()]).toEqual(['2023-10-25']);
+  });
+
+  test('selectEventsForDay returns a continuing event on its second day', async () => {
+    const lateShow = makeEvent({
+      id: 'late-show',
+      startsAt: '2023-10-25T20:00:00',
+      endsAt: '2023-10-26T01:00:00',
+    });
+    const store = await storeWith([lateShow]);
+
+    expect(selectEventsForDay(store.getState(), new Date(2023, 9, 26))).toEqual([lateShow]);
   });
 });

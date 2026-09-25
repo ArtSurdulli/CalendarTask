@@ -167,3 +167,62 @@ describe('DayScheduleView overlapping events', () => {
     expect(collapsed[0].text).toEqual(['Event 4', '+1']);
   });
 });
+
+describe('DayScheduleView with events crossing midnight', () => {
+  // The schedule renders Nov 3 2023 (see renderSchedule).
+  function blockFor(renderer: ReactTestRenderer.ReactTestRenderer, title: string) {
+    const node = renderer.root.find(
+      (candidate) =>
+        typeof candidate.props.onPress === 'function' &&
+        String(candidate.props.accessibilityLabel).startsWith(`${title}, `),
+    );
+    const style = StyleSheet.flatten(node.props.style);
+    return {
+      label: node.props.accessibilityLabel as string,
+      top: style.top,
+      height: style.height,
+      text: node.findAllByType(Text).map((text) => text.props.children),
+    };
+  }
+
+  const base = concurrentEvents(1)[0];
+
+  test('an event from the previous evening is clamped to the top and marked as continuing', () => {
+    const renderer = renderSchedule(jest.fn(), {
+      events: [
+        { ...base, title: 'Late show', startsAt: '2023-11-02T20:00:00', endsAt: '2023-11-03T01:00:00' },
+      ],
+    });
+
+    const block = blockFor(renderer, 'Late show');
+    expect(block.top).toBe(0);
+    expect(block.height).toBe(60); // 00:00-01:00 at one pixel per minute
+    expect(block.text).toEqual(['From Thu 8:00 PM', 'Late show']);
+    expect(block.label).toBe('Late show, Thu Nov 2, 8:00 PM – 1:00 AM, continued from Thursday');
+  });
+
+  test('an event running past midnight is clamped to the end of the day', () => {
+    const renderer = renderSchedule(jest.fn(), {
+      events: [
+        { ...base, title: 'Late show', startsAt: '2023-11-03T20:00:00', endsAt: '2023-11-04T01:00:00' },
+      ],
+    });
+
+    const block = blockFor(renderer, 'Late show');
+    expect(block.top).toBe(20 * 60);
+    expect(block.height).toBe(4 * 60); // 20:00 to the bottom of the day
+    expect(block.text).toEqual(['Late show']);
+  });
+
+  test('a middle day of a three-day event fills the whole day', () => {
+    const renderer = renderSchedule(jest.fn(), {
+      events: [
+        { ...base, title: 'Conference', startsAt: '2023-11-02T09:00:00', endsAt: '2023-11-04T17:00:00' },
+      ],
+    });
+
+    const block = blockFor(renderer, 'Conference');
+    expect(block.top).toBe(0);
+    expect(block.height).toBe(24 * 60);
+  });
+});
