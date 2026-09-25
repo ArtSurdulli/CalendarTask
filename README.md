@@ -106,7 +106,7 @@ src/
                 eventDefaults, EventFormScreen
     profile/    ProfileScreen
   navigation/   root, auth, tab and calendar navigators; stack animation options
-  theme/        colours, spacing, radius, category colours, shadows, motion
+  theme/        light and dark palettes, useTheme/makeStyles, spacing, radius, shadows, motion
   types/        User, CalendarEvent, EventCategory
 ```
 
@@ -233,6 +233,20 @@ password form is always one tap away through "Use password instead".
 access-controlled Keychain items without showing a Face ID prompt, even with Face ID enrolled
 under Features > Face ID. On the simulator, "Use Face ID" signs in immediately. The biometric
 check can only be verified on a physical device.
+
+## Theming and dark mode
+
+The app follows the system appearance and switches live when it changes; `Info.plist` does not
+pin `UIUserInterfaceStyle`. Colours come in a light and a warm dark palette with identical token
+names (`background`, `card`, `textPrimary`, `accent`, the category colours and so on), so a
+component chooses a token by meaning and only the value changes with the scheme. Components
+read colours through `useTheme()`, and colour-dependent styles are declared with
+`makeStyles(...)`, which builds each stylesheet at most once per scheme. Spacing, radius and
+motion tokens are shared by both schemes. In dark mode cards get a hairline outline, since a
+soft drop shadow is invisible on a dark page, and the status bar switches to light content.
+React Navigation's theme is built from the same palette, so the native header and screen
+backgrounds match. Alerts and the native date pickers are drawn by iOS; the pickers are pinned
+to the app's scheme so they match the surfaces around them.
 
 ## Animations
 

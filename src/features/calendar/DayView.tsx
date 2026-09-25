@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { format, parseISO } from 'date-fns';
-import { categoryColors, colors, radius, shadows, spacing } from '../../theme';
+import { makeStyles, radius, spacing, useTheme } from '../../theme';
 import { eventStartsBeforeDay, formatEventTimeRange } from './dateUtils';
 import type { CalendarEvent } from '../../types';
 
@@ -18,6 +18,7 @@ export interface DayViewProps {
  * `events` are fully controlled by the parent.
  */
 export function DayView({ day, events, onSelectEvent, onCreate }: DayViewProps) {
+  const styles = useStyles();
   const sortedEvents = [...events].sort(
     (a, b) => parseISO(a.startsAt).getTime() - parseISO(b.startsAt).getTime(),
   );
@@ -60,6 +61,8 @@ interface EventRowProps {
 }
 
 function EventRow({ event, day, onPress }: EventRowProps) {
+  const styles = useStyles();
+  const { categoryColors, shadows } = useTheme();
   // An event that began on an earlier day keeps its real start, with that
   // day's date, e.g. "Thu Sep 25, 8:00 PM – 1:00 AM".
   const timeRange = formatEventTimeRange(event, day);
@@ -96,82 +99,84 @@ function EventRow({ event, day, onPress }: EventRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  row: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderLeftWidth: 4,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  rowMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rowTitle: {
-    fontSize: 15,
-    color: colors.textPrimary,
-    flexShrink: 1,
-    marginRight: spacing.sm,
-  },
-  rowTime: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  rowContinued: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  rowNotes: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  emptyButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyButtonText: {
-    color: colors.onPrimary,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    list: {
+      flex: 1,
+    },
+    listContent: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    row: {
+      backgroundColor: colors.card,
+      borderRadius: radius.lg,
+      borderLeftWidth: 4,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      minHeight: 44,
+      justifyContent: 'center',
+    },
+    rowMain: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    rowTitle: {
+      fontSize: 15,
+      color: colors.textPrimary,
+      flexShrink: 1,
+      marginRight: spacing.sm,
+    },
+    rowTime: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    rowContinued: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    rowNotes: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    emptyText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: spacing.md,
+    },
+    emptyButton: {
+      backgroundColor: colors.accent,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyButtonText: {
+      color: colors.onPrimary,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+  }),
+);

@@ -14,7 +14,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { createEvent, deleteEvent, selectEventItems, updateEvent } from './eventsSlice';
 import { toLocalISOString } from '../calendar/dateUtils';
 import { defaultStartAndEnd } from './eventDefaults';
-import { categoryColors, categoryColorsTint, colors, radius, shadows, spacing } from '../../theme';
+import { makeStyles, radius, spacing, useTheme } from '../../theme';
 import { EVENT_CATEGORIES, type EventCategory } from '../../types';
 import type { CalendarStackParamList } from '../../navigation/CalendarNavigator';
 
@@ -36,6 +36,8 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 type Props = NativeStackScreenProps<CalendarStackParamList, 'EventForm'>;
 
 export function EventFormScreen({ navigation, route }: Props) {
+  const styles = useStyles();
+  const { shadows } = useTheme();
   const dispatch = useAppDispatch();
   const eventId = route.params?.eventId;
   const defaultDay = route.params?.date ? parseISO(route.params.date) : undefined;
@@ -321,6 +323,8 @@ function DateTimeField({
   error,
   isLast,
 }: DateTimeFieldProps) {
+  const styles = useStyles();
+  const { scheme, colors } = useTheme();
   const handleDateChange = (_event: DateTimePickerChangeEvent, selected: Date) => {
     const merged = new Date(value);
     merged.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
@@ -336,11 +340,19 @@ function DateTimeField({
   return (
     <View style={[styles.dateTimeFieldContainer, isLast && styles.dateTimeFieldContainerLast]}>
       <Text style={styles.label}>{label}</Text>
+      {/*
+        iOS draws the compact picker's pill itself (a translucent system fill
+        and the system label colour). Its theme is pinned to the app's scheme -
+        otherwise a device in dark mode draws light-on-grey pills on the app's
+        surface, which read as disabled.
+      */}
       <View style={styles.dateTimeRow}>
         <DateTimePicker
           value={value}
           mode="date"
           display="compact"
+          themeVariant={scheme}
+          accentColor={colors.accent}
           onValueChange={handleDateChange}
           accessibilityLabel={`${accessibilityLabelPrefix} date`}
           style={styles.datePicker}
@@ -349,9 +361,10 @@ function DateTimeField({
           value={value}
           mode="time"
           display="compact"
+          themeVariant={scheme}
+          accentColor={colors.accent}
           onValueChange={handleTimeChange}
           accessibilityLabel={`${accessibilityLabelPrefix} time`}
-          style={styles.timePicker}
         />
       </View>
       {error ? (
@@ -377,6 +390,8 @@ function capitalize(value: string): string {
 }
 
 function CategoryPicker({ value, onChange }: CategoryPickerProps) {
+  const styles = useStyles();
+  const { colors, categoryColors, categoryColorsTint } = useTheme();
   return (
     <View style={styles.categoryRow}>
       {EVENT_CATEGORIES.map((category) => {
@@ -409,112 +424,113 @@ function CategoryPicker({ value, onChange }: CategoryPickerProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  container: {
-    flexGrow: 1,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  notFound: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  categoryChip: {
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  categoryChipTextSelected: {
-    fontWeight: '700',
-  },
-  dateTimeFieldContainer: {
-    marginBottom: spacing.md,
-  },
-  dateTimeFieldContainerLast: {
-    marginBottom: 0,
-  },
-  dateTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  datePicker: {
-    marginRight: spacing.md,
-  },
-  timePicker: {},
-  error: {
-    marginTop: spacing.xs,
-    fontSize: 13,
-    color: colors.danger,
-  },
-  footer: {
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  formError: {
-    color: colors.danger,
-    fontSize: 14,
-  },
-  submitButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: colors.onPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  deleteButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  deleteButtonText: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scroll: {
+      flex: 1,
+    },
+    container: {
+      flexGrow: 1,
+      padding: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    notFound: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.xl,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: radius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.xl,
+    },
+    label: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    categoryRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    categoryChip: {
+      borderRadius: radius.full,
+      paddingHorizontal: spacing.md,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    categoryChipText: {
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    categoryChipTextSelected: {
+      fontWeight: '700',
+    },
+    dateTimeFieldContainer: {
+      marginBottom: spacing.md,
+    },
+    dateTimeFieldContainerLast: {
+      marginBottom: 0,
+    },
+    dateTimeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    datePicker: {
+      marginRight: spacing.md,
+    },
+    error: {
+      marginTop: spacing.xs,
+      fontSize: 13,
+      color: colors.danger,
+    },
+    footer: {
+      backgroundColor: colors.card,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    formError: {
+      color: colors.danger,
+      fontSize: 14,
+    },
+    submitButton: {
+      backgroundColor: colors.accent,
+      borderRadius: radius.lg,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 52,
+    },
+    submitButtonDisabled: {
+      opacity: 0.6,
+    },
+    submitButtonText: {
+      color: colors.onPrimary,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    deleteButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+    },
+    deleteButtonText: {
+      color: colors.danger,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+  }),
+);

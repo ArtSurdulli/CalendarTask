@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addDays, format, parseISO, startOfDay } from 'date-fns';
-import { categoryColors, categoryColorsTint, colors, radius, spacing } from '../../theme';
+import { makeStyles, radius, spacing, useTheme } from '../../theme';
 import { eventStartsBeforeDay, formatEventTimeRange, getEventInterval } from './dateUtils';
 import type { CalendarEvent } from '../../types';
 
@@ -49,6 +49,8 @@ export function DayScheduleView({
   onCreate,
   onShowDayEvents,
 }: DayScheduleViewProps) {
+  const styles = useStyles();
+  const { categoryColors, categoryColorsTint } = useTheme();
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -260,73 +262,75 @@ function layoutEvents(events: CalendarEvent[], day: Date): LaidOutEvent[] {
   return laidOut;
 }
 
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: spacing.lg,
-  },
-  grid: {
-    position: 'relative',
-  },
-  hourRow: {
-    flexDirection: 'row',
-    height: HOUR_HEIGHT,
-  },
-  hourLabel: {
-    width: HOUR_LABEL_WIDTH,
-    paddingLeft: spacing.md,
-    paddingTop: spacing.xs,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  hourLine: {
-    flex: 1,
-    marginRight: CONTENT_RIGHT_INSET,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderStrong,
-  },
-  halfHourLine: {
-    position: 'absolute',
-    top: HOUR_HEIGHT / 2,
-    left: HOUR_LABEL_WIDTH,
-    right: CONTENT_RIGHT_INSET,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSubtle,
-  },
-  eventsLayer: {
-    position: 'absolute',
-    top: 0,
-    left: HOUR_LABEL_WIDTH,
-    right: CONTENT_RIGHT_INSET,
-    height: HOURS.length * HOUR_HEIGHT,
-  },
-  eventBlock: {
-    position: 'absolute',
-    borderRadius: radius.sm,
-    borderLeftWidth: 3,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    justifyContent: 'center',
-  },
-  eventBlockContinued: {
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-  },
-  eventBlockContinuedLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  eventBlockTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  moreIndicator: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      paddingBottom: spacing.lg,
+    },
+    grid: {
+      position: 'relative',
+    },
+    hourRow: {
+      flexDirection: 'row',
+      height: HOUR_HEIGHT,
+    },
+    hourLabel: {
+      width: HOUR_LABEL_WIDTH,
+      paddingLeft: spacing.md,
+      paddingTop: spacing.xs,
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    hourLine: {
+      flex: 1,
+      marginRight: CONTENT_RIGHT_INSET,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderStrong,
+    },
+    halfHourLine: {
+      position: 'absolute',
+      top: HOUR_HEIGHT / 2,
+      left: HOUR_LABEL_WIDTH,
+      right: CONTENT_RIGHT_INSET,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderSubtle,
+    },
+    eventsLayer: {
+      position: 'absolute',
+      top: 0,
+      left: HOUR_LABEL_WIDTH,
+      right: CONTENT_RIGHT_INSET,
+      height: HOURS.length * HOUR_HEIGHT,
+    },
+    eventBlock: {
+      position: 'absolute',
+      borderRadius: radius.sm,
+      borderLeftWidth: 3,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 2,
+      justifyContent: 'center',
+    },
+    eventBlockContinued: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+    },
+    eventBlockContinuedLabel: {
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+    eventBlockTitle: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    moreIndicator: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+  }),
+);

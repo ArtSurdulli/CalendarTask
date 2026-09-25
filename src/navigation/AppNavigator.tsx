@@ -8,7 +8,7 @@ import type {
 } from '@react-navigation/bottom-tabs';
 import { CalendarNavigator } from './CalendarNavigator';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
-import { colors, motion, radius, spacing } from '../theme';
+import { makeStyles, motion, radius, spacing } from '../theme';
 import { useReduceMotion } from '../app/useReduceMotion';
 
 export type AppTabParamList = {
@@ -19,16 +19,22 @@ export type AppTabParamList = {
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
 /**
- * Bar height above the bottom safe-area inset - slimmer than the library's
- * 49pt default, but still a full 44pt touch target.
+ * Bar height above the bottom safe-area inset: room for the 36pt active
+ * pill with even space above and below, rather than a pill that fills the
+ * bar edge to edge.
  */
-const TAB_BAR_HEIGHT = 44;
+const TAB_BAR_HEIGHT = 56;
+
+/** Fixed pill size, so the active and inactive tabs occupy identical boxes. */
+const PILL_HEIGHT = 36;
+const PILL_MIN_WIDTH = 104;
 
 /**
  * react-native-svg isn't a dependency of this project, so tab icons are
  * dropped entirely rather than pulling in a new native dependency for
- * them - the active tab is unambiguous from the accent-tinted pill and
- * accent-coloured, heavier label alone.
+ * them - the active tab is unambiguous from its solid accent pill and
+ * heavier label alone. Both tabs render the same-sized pill (transparent
+ * when inactive), so switching tabs never shifts the layout.
  *
  * This is a full `tabBarButton` override (not `tabBarLabel`/`tabBarIcon`)
  * so none of the library's default composition - including its default
@@ -43,6 +49,7 @@ function TabButton({
   style,
   'aria-selected': ariaSelected,
 }: BottomTabBarButtonProps & { label: string }) {
+  const styles = useStyles();
   // react-navigation's BottomTabItem actually signals selection via the
   // `aria-selected` prop, not `accessibilityState.selected` (which it
   // never sets when a custom tabBarButton is used) - reading only the
@@ -100,6 +107,7 @@ function tabAnimation(
 }
 
 export function AppNavigator() {
+  const styles = useStyles();
   const reduceMotion = useReduceMotion();
   // A `height` in tabBarStyle replaces the library's whole computed height
   // (49 + inset), so the inset has to be added back or the bar would sit
@@ -131,38 +139,43 @@ export function AppNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: colors.card,
-    // Flush against the content: no top hairline, and no Android elevation
-    // shadow (the library's default draws one along the top edge).
-    borderTopWidth: 0,
-    elevation: 0,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xs,
-  },
-  pill: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-  },
-  pillActive: {
-    backgroundColor: colors.accent,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  labelInactive: {
-    color: colors.textSecondary,
-  },
-  labelActive: {
-    color: colors.onPrimary,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    tabBar: {
+      backgroundColor: colors.card,
+      // Flush against the content: no top hairline, and no Android elevation
+      // shadow (the library's default draws one along the top edge).
+      borderTopWidth: 0,
+      elevation: 0,
+    },
+    tabButton: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pill: {
+      height: PILL_HEIGHT,
+      minWidth: PILL_MIN_WIDTH,
+      paddingHorizontal: spacing.lg,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pillActive: {
+      backgroundColor: colors.accent,
+    },
+    label: {
+      fontSize: 12,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+    },
+    labelInactive: {
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    labelActive: {
+      color: colors.onPrimary,
+      fontWeight: '700',
+    },
+  }),
+);

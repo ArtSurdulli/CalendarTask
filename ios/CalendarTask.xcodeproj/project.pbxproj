@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		1E5928172EEFF2E745F79985 /* Pods_CalendarTask.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CAE72F099BF5B23B32DC4C56 /* Pods_CalendarTask.framework */; };
-		2E0A98C83066DD2900FECD19 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2E0A98C73066DD2900FECD19 /* GoogleService-Info.plist */; };
+		2E0A98CC30673B6700FECD19 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2E0A98CB30673B6700FECD19 /* GoogleService-Info.plist */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		C1D7CB33D9D01A2AC5A94076 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2D095E6694499C627260C3A3 /* FirebaseCore */; };
@@ -21,7 +21,7 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = CalendarTask/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = CalendarTask/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = CalendarTask/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		2E0A98C73066DD2900FECD19 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		2E0A98CB30673B6700FECD19 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-CalendarTask.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CalendarTask.debug.xcconfig"; path = "Target Support Files/Pods-CalendarTask/Pods-CalendarTask.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-CalendarTask.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CalendarTask.release.xcconfig"; path = "Target Support Files/Pods-CalendarTask/Pods-CalendarTask.release.xcconfig"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = CalendarTask/AppDelegate.swift; sourceTree = "<group>"; };
@@ -46,7 +46,7 @@
 		13B07FAE1A68108700A75B9A /* CalendarTask */ = {
 			isa = PBXGroup;
 			children = (
-				2E0A98C73066DD2900FECD19 /* GoogleService-Info.plist */,
+				2E0A98CB30673B6700FECD19 /* GoogleService-Info.plist */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -173,7 +173,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
-				2E0A98C83066DD2900FECD19 /* GoogleService-Info.plist in Resources */,
+				2E0A98CC30673B6700FECD19 /* GoogleService-Info.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				CA4EDF1FEC68EDE7BACFECE8 /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -354,6 +354,7 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.artsurdulli.calendartask;
 				PRODUCT_NAME = CalendarTask;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
@@ -387,6 +388,7 @@
 					"-lc++",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.artsurdulli.calendartask;
 				PRODUCT_NAME = CalendarTask;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_ENABLE_EXPLICIT_MODULES = NO;

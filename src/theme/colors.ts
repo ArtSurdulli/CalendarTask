@@ -1,4 +1,27 @@
-export const colors = {
+/**
+ * Colour tokens. Both schemes define exactly the same names, so a
+ * component picks a token by meaning and the scheme only changes its
+ * value. Read them through `useTheme()` (src/theme/theme.ts), never by
+ * importing a palette directly.
+ */
+export interface Palette {
+  background: string;
+  card: string;
+  surface: string;
+  border: string;
+  borderStrong: string;
+  borderSubtle: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  onPrimary: string;
+  accent: string;
+  accentTint: string;
+  danger: string;
+  shadow: string;
+}
+
+export const lightColors: Palette = {
   /** Page/screen background - a light warm grey, not white. Cards sit on
    * top of this in `card`. */
   background: '#F3EFE8',
@@ -40,4 +63,35 @@ export const colors = {
 
   /** Base colour for card drop shadows (see theme/shadows.ts). */
   shadow: '#000000',
-} as const;
+};
+
+/**
+ * Warm dark counterparts, rather than pure black: a dark warm-grey page,
+ * a slightly lighter card, and the same token roles and relative
+ * contrasts as the light palette (e.g. `borderStrong` ~2:1 and
+ * `borderSubtle` ~1.45:1 against `background`).
+ */
+export const darkColors: Palette = {
+  background: '#1C1917',
+  card: '#2A2622',
+  surface: '#322D29',
+  border: '#403A34',
+  borderStrong: '#51493F',
+  borderSubtle: '#3B352F',
+
+  textPrimary: '#F3EEE7',
+  textSecondary: '#AFA79C',
+  textMuted: '#7A7168',
+
+  // Dark, not white: in this scheme `onPrimary` sits on both the accent
+  // fill and the selected-day fill (`textPrimary`, cream here), and a
+  // dark warm tone reads on both (7.3:1 and 15:1).
+  onPrimary: '#1C1917',
+
+  accent: '#FF8552',
+  accentTint: '#4A2F22',
+
+  danger: '#FF7B6E',
+
+  shadow: '#000000',
+};

@@ -8,7 +8,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FormField } from '../../components/FormField';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { signUp } from './authSlice';
-import { colors, radius, spacing } from '../../theme';
+import { makeStyles, radius, spacing } from '../../theme';
 import type { AuthStackParamList } from '../../navigation/AuthNavigator';
 
 const signUpSchema = z
@@ -32,6 +32,7 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
 export function SignUpScreen({ navigation }: Props) {
+  const styles = useStyles();
   const dispatch = useAppDispatch();
   const status = useAppSelector((state) => state.auth.status);
   const formError = useAppSelector((state) => state.auth.error);
@@ -166,53 +167,55 @@ export function SignUpScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.lg,
-  },
-  formError: {
-    color: colors.danger,
-    fontSize: 14,
-    marginBottom: spacing.md,
-  },
-  submitButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    marginTop: spacing.sm,
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: colors.onPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    marginTop: spacing.md,
-  },
-  linkText: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: spacing.lg,
+    },
+    formError: {
+      color: colors.danger,
+      fontSize: 14,
+      marginBottom: spacing.md,
+    },
+    submitButton: {
+      backgroundColor: colors.accent,
+      borderRadius: radius.md,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+      marginTop: spacing.sm,
+    },
+    submitButtonDisabled: {
+      opacity: 0.6,
+    },
+    submitButtonText: {
+      color: colors.onPrimary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    linkButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+      marginTop: spacing.md,
+    },
+    linkText: {
+      color: colors.accent,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+  }),
+);

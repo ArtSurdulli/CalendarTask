@@ -6,10 +6,12 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { disableBiometrics, enableBiometrics, signOut } from '../auth/authSlice';
 import { describeBiometryType } from '../auth/biometricRepository';
 import { selectEventStats } from '../events/eventsSlice';
-import { colors, radius, shadows, spacing } from '../../theme';
+import { makeStyles, radius, spacing, useTheme } from '../../theme';
 
 /** Profile tab: identity, biometric toggle, event stats, sign-out. */
 export function ProfileScreen() {
+  const styles = useStyles();
+  const { colors, shadows } = useTheme();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const status = useAppSelector((state) => state.auth.status);
@@ -160,6 +162,7 @@ interface StatRowProps {
 
 /** One label/value line in the stats card, read as a single phrase. */
 function StatRow({ label, value, isLast = false }: StatRowProps) {
+  const styles = useStyles();
   return (
     <View
       accessible
@@ -172,91 +175,93 @@ function StatRow({ label, value, isLast = false }: StatRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  email: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  settingsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  settingsTextGroup: {
-    flex: 1,
-    flexShrink: 1,
-    marginRight: spacing.md,
-  },
-  settingsLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  settingsDescription: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  settingsTextDisabled: {
-    color: colors.textMuted,
-  },
-  cardTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  statRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  statRowDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  statLabel: {
-    fontSize: 15,
-    color: colors.textPrimary,
-  },
-  statValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  signOutButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  signOutButtonTextDisabled: {
-    opacity: 0.6,
-  },
-  signOutButtonText: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      flex: 1,
+      padding: spacing.lg,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: radius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    name: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    email: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    settingsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      minHeight: 44,
+    },
+    settingsTextGroup: {
+      flex: 1,
+      flexShrink: 1,
+      marginRight: spacing.md,
+    },
+    settingsLabel: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    settingsDescription: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    settingsTextDisabled: {
+      color: colors.textMuted,
+    },
+    cardTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    statRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      minHeight: 44,
+    },
+    statRowDivider: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    statLabel: {
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    statValue: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    signOutButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+    },
+    signOutButtonTextDisabled: {
+      opacity: 0.6,
+    },
+    signOutButtonText: {
+      color: colors.danger,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+  }),
+);

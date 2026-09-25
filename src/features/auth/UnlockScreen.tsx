@@ -5,7 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { signInWithBiometrics } from './authSlice';
 import { describeBiometryType } from './biometricRepository';
-import { colors, radius, spacing } from '../../theme';
+import { makeStyles, radius, spacing } from '../../theme';
 import type { AuthStackParamList } from '../../navigation/AuthNavigator';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Unlock'>;
@@ -17,6 +17,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Unlock'>;
  * is a deliberate tap, and the password form is always one tap away too.
  */
 export function UnlockScreen({ navigation }: Props) {
+  const styles = useStyles();
   const dispatch = useAppDispatch();
   const biometrySupported = useAppSelector((state) => state.auth.biometrySupported);
   const status = useAppSelector((state) => state.auth.status);
@@ -66,57 +67,59 @@ export function UnlockScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 14,
-    marginBottom: spacing.md,
-  },
-  primaryButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  primaryButtonDisabled: {
-    opacity: 0.6,
-  },
-  primaryButtonText: {
-    color: colors.onPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    marginTop: spacing.md,
-  },
-  linkText: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      marginBottom: spacing.lg,
+    },
+    error: {
+      color: colors.danger,
+      fontSize: 14,
+      marginBottom: spacing.md,
+    },
+    primaryButton: {
+      backgroundColor: colors.accent,
+      borderRadius: radius.md,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+    },
+    primaryButtonDisabled: {
+      opacity: 0.6,
+    },
+    primaryButtonText: {
+      color: colors.onPrimary,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    linkButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+      marginTop: spacing.md,
+    },
+    linkText: {
+      color: colors.accent,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+  }),
+);

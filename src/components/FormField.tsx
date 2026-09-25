@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
-import { colors, radius, spacing } from '../theme';
+import { makeStyles, radius, spacing, useTheme } from '../theme';
 
 export interface FormFieldProps extends Omit<TextInputProps, 'style'> {
   label: string;
@@ -18,6 +18,8 @@ export interface FormFieldProps extends Omit<TextInputProps, 'style'> {
 /** Labelled text input with an inline, screen-reader-announced error. */
 export const FormField = forwardRef<TextInput, FormFieldProps>(
   ({ label, error, accessibilityLabel, variant = 'default', ...inputProps }, ref) => {
+    const styles = useStyles();
+    const { colors } = useTheme();
     const isCard = variant === 'card';
 
     return (
@@ -51,42 +53,45 @@ export const FormField = forwardRef<TextInput, FormFieldProps>(
 
 FormField.displayName = 'FormField';
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.md,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: 16,
-    color: colors.textPrimary,
-    backgroundColor: colors.surface,
-    minHeight: 44,
-  },
-  inputCard: {
-    minHeight: 52,
-    paddingVertical: spacing.md,
-  },
-  inputCardMultiline: {
-    minHeight: 64,
-    textAlignVertical: 'top',
-    paddingTop: spacing.md,
-  },
-  inputError: {
-    borderColor: colors.danger,
-  },
-  error: {
-    marginTop: spacing.xs,
-    fontSize: 13,
-    color: colors.danger,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    container: {
+      marginBottom: spacing.md,
+    },
+    label: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      fontSize: 16,
+      color: colors.textPrimary,
+      backgroundColor: colors.surface,
+      minHeight: 44,
+    },
+    inputCard: {
+      minHeight: 52,
+      paddingVertical: spacing.md,
+    },
+    // Same resting height as a single-line card field (it inherits
+    // `inputCard`'s minHeight and padding), so Title and Notes line up;
+    // a multiline field still grows as more lines are typed.
+    inputCardMultiline: {
+      textAlignVertical: 'top',
+    },
+    inputError: {
+      borderColor: colors.danger,
+    },
+    error: {
+      marginTop: spacing.xs,
+      fontSize: 13,
+      color: colors.danger,
+    },
+  }),
+);

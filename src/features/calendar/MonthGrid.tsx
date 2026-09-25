@@ -17,7 +17,7 @@ import {
   isSameCalendarDay,
   toDayKey,
 } from './dateUtils';
-import { categoryColors, colors, motion, radius, spacing } from '../../theme';
+import { makeStyles, motion, radius, spacing, useTheme } from '../../theme';
 import type { EventCategory } from '../../types';
 import { useReduceMotion } from '../../app/useReduceMotion';
 
@@ -110,6 +110,7 @@ export function MonthGrid({
   eventCountsByDay,
   eventCategoriesByDay,
 }: MonthGridProps) {
+  const styles = useStyles();
   const [containerWidth, setContainerWidth] = useState(0);
   const transitionStyle = useMonthTransition(month);
 
@@ -187,6 +188,8 @@ interface DayCellProps {
 }
 
 function DayCell({ cell, size, isSelected, eventCount, categories, onPress }: DayCellProps) {
+  const styles = useStyles();
+  const { categoryColors } = useTheme();
   const { date, isCurrentMonth, isToday } = cell;
   const badgeSize = Math.min(size - spacing.sm, size * 0.78);
   const hasEvents = eventCount > 0;
@@ -251,66 +254,68 @@ function DayCell({ cell, size, isSelected, eventCount, categories, onPress }: Da
   );
 }
 
-const styles = StyleSheet.create({
-  weekdayRow: {
-    flexDirection: 'row',
-  },
-  weekdayCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  weekdayLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  gridViewport: {
-    overflow: 'hidden',
-  },
-  weekRow: {
-    flexDirection: 'row',
-  },
-  dayCell: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayCellContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayBadge: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  dayBadgeToday: {
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-  },
-  dayBadgeSelected: {
-    backgroundColor: colors.textPrimary,
-  },
-  dayText: {
-    fontSize: 15,
-    color: colors.textPrimary,
-  },
-  dayTextMuted: {
-    color: colors.textMuted,
-  },
-  dayTextSelected: {
-    color: colors.onPrimary,
-    fontWeight: '600',
-  },
-  categoryDotsRow: {
-    flexDirection: 'row',
-    marginTop: spacing.xs,
-    gap: 3,
-  },
-  categoryDot: {
-    width: spacing.xs,
-    height: spacing.xs,
-    borderRadius: radius.full,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    weekdayRow: {
+      flexDirection: 'row',
+    },
+    weekdayCell: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    weekdayLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    gridViewport: {
+      overflow: 'hidden',
+    },
+    weekRow: {
+      flexDirection: 'row',
+    },
+    dayCell: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayCellContent: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayBadge: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    dayBadgeToday: {
+      borderWidth: 1.5,
+      borderColor: colors.accent,
+    },
+    dayBadgeSelected: {
+      backgroundColor: colors.textPrimary,
+    },
+    dayText: {
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    dayTextMuted: {
+      color: colors.textMuted,
+    },
+    dayTextSelected: {
+      color: colors.onPrimary,
+      fontWeight: '600',
+    },
+    categoryDotsRow: {
+      flexDirection: 'row',
+      marginTop: spacing.xs,
+      gap: 3,
+    },
+    categoryDot: {
+      width: spacing.xs,
+      height: spacing.xs,
+      borderRadius: radius.full,
+    },
+  }),
+);

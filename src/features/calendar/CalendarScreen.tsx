@@ -21,12 +21,14 @@ import {
   selectEventCountsByDayForMonth,
   selectEventsForDay,
 } from '../events/eventsSlice';
-import { colors, radius, shadows, spacing } from '../../theme';
+import { makeStyles, radius, spacing, useTheme } from '../../theme';
 import type { CalendarStackParamList } from '../../navigation/CalendarNavigator';
 
 type Props = NativeStackScreenProps<CalendarStackParamList, 'CalendarHome'>;
 
 export function CalendarScreen({ navigation }: Props) {
+  const styles = useStyles();
+  const { shadows } = useTheme();
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.auth.user?.id);
 
@@ -199,6 +201,7 @@ const VIEW_MODES: { mode: ViewMode; label: string }[] = [
 ];
 
 function ViewModeSwitch({ value, onChange }: ViewModeSwitchProps) {
+  const styles = useStyles();
   return (
     <View style={styles.segmentedControl}>
       {VIEW_MODES.map(({ mode, label }) => {
@@ -222,83 +225,85 @@ function ViewModeSwitch({ value, onChange }: ViewModeSwitchProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  title: {
-    flex: 1,
-    flexShrink: 1,
-    marginRight: spacing.sm,
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  headerRightGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  navButton: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navButtonText: {
-    fontSize: 22,
-    color: colors.textPrimary,
-  },
-  viewModeStage: {
-    flex: 1,
-  },
-  viewModeLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  segmentedControlRow: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderRadius: radius.full,
-    padding: 2,
-  },
-  segment: {
-    minWidth: 72,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.full,
-  },
-  segmentActive: {
-    backgroundColor: colors.accent,
-  },
-  segmentText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  segmentTextActive: {
-    color: colors.onPrimary,
-  },
-  gridCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.md,
+    },
+    title: {
+      flex: 1,
+      flexShrink: 1,
+      marginRight: spacing.sm,
+      fontSize: 32,
+      fontWeight: '800',
+      color: colors.textPrimary,
+    },
+    headerRightGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 0,
+    },
+    navButton: {
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    navButtonText: {
+      fontSize: 22,
+      color: colors.textPrimary,
+    },
+    viewModeStage: {
+      flex: 1,
+    },
+    viewModeLayer: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    segmentedControlRow: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+    },
+    segmentedControl: {
+      flexDirection: 'row',
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surface,
+      borderRadius: radius.full,
+      padding: 2,
+    },
+    segment: {
+      minWidth: 72,
+      minHeight: 44,
+      paddingHorizontal: spacing.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.full,
+    },
+    segmentActive: {
+      backgroundColor: colors.accent,
+    },
+    segmentText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    segmentTextActive: {
+      color: colors.onPrimary,
+    },
+    gridCard: {
+      backgroundColor: colors.card,
+      borderRadius: radius.lg,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+    },
+  }),
+);
