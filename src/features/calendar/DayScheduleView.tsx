@@ -56,6 +56,8 @@ export function DayScheduleView({ day, events, onSelectEvent, onCreate }: DaySch
           >
             <Text style={styles.hourLabel}>{formatHourLabel(hour)}</Text>
             <View style={styles.hourLine} />
+            {/* Decorative only - touches fall through to the hour row. */}
+            <View style={styles.halfHourLine} pointerEvents="none" />
           </Pressable>
         ))}
 
@@ -212,7 +214,15 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderStrong,
+  },
+  halfHourLine: {
+    position: 'absolute',
+    top: HOUR_HEIGHT / 2,
+    left: HOUR_LABEL_WIDTH,
+    right: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
   },
   eventsLayer: {
     position: 'absolute',

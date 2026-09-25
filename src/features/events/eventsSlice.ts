@@ -196,3 +196,34 @@ export const selectEventCategoriesByDayForMonth = createSelector(
     return result;
   },
 );
+
+export interface EventStats {
+  total: number;
+  inMonth: number;
+  /**
+   * `startsAt` of the earliest-scheduled event, or undefined with no
+   * events. Events carry no creation timestamp, so this stands in for
+   * "first event created".
+   */
+  earliestStartsAt?: string;
+}
+
+/**
+ * Summary counts for the profile screen: all events, events starting in
+ * `month`, and the earliest start. `startsAt` strings share one fixed
+ * local-ISO format (see CalendarEvent), so they order correctly as plain
+ * strings without parsing each one.
+ */
+export const selectEventStats = createSelector(
+  [selectEventItems, (_state: RootState, month: Date) => month],
+  (items, month): EventStats => {
+    let earliestStartsAt: string | undefined;
+    for (const event of items) {
+      if (earliestStartsAt === undefined || event.startsAt < earliestStartsAt) {
+        earliestStartsAt = event.startsAt;
+      }
+    }
+
+    return { total: items.length, inMonth: eventsInMonth(items, month).length, earliestStartsAt };
+  },
+);

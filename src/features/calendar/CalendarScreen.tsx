@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format, isSameMonth } from 'date-fns';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DayScheduleView } from './DayScheduleView';
 import { DayView } from './DayView';
 import { MonthGrid } from './MonthGrid';
+import { type ViewMode, useViewModeCrossFade } from './useViewModeCrossFade';
 import {
   getNextDay,
   getNextMonth,
@@ -25,14 +26,12 @@ import type { CalendarStackParamList } from '../../navigation/CalendarNavigator'
 
 type Props = NativeStackScreenProps<CalendarStackParamList, 'CalendarHome'>;
 
-type ViewMode = 'month' | 'day';
-
 export function CalendarScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.auth.user?.id);
 
   const [today] = useState(() => new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const { viewMode, outgoingMode, opacities, changeViewMode } = useViewModeCrossFade('month');
   const [displayedMonth, setDisplayedMonth] = useState(today);
   const [selectedDay, setSelectedDay] = useState(today);
 
@@ -81,6 +80,35 @@ export function CalendarScreen({ navigation }: Props) {
 
   const goToEditEvent = (id: string) => navigation.navigate('EventForm', { eventId: id });
 
+  const renderViewMode = (mode: ViewMode) =>
+    mode === 'month' ? (
+      <>
+        <View style={[styles.gridCard, shadows.card]}>
+          <MonthGrid
+            month={displayedMonth}
+            selectedDay={selectedDay}
+            onSelectDay={setSelectedDay}
+            eventCountsByDay={eventCountsByDay}
+            eventCategoriesByDay={eventCategoriesByDay}
+          />
+        </View>
+
+        <DayView
+          day={selectedDay}
+          events={dayEvents}
+          onSelectEvent={goToEditEvent}
+          onCreate={goToAddEvent}
+        />
+      </>
+    ) : (
+      <DayScheduleView
+        day={selectedDay}
+        events={dayEvents}
+        onSelectEvent={goToEditEvent}
+        onCreate={goToAddEventAtHour}
+      />
+    );
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
@@ -126,36 +154,35 @@ export function CalendarScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.segmentedControlRow}>
-        <ViewModeSwitch value={viewMode} onChange={setViewMode} />
+        <ViewModeSwitch value={viewMode} onChange={changeViewMode} />
       </View>
 
-      {viewMode === 'month' ? (
-        <>
-          <View style={[styles.gridCard, shadows.card]}>
-            <MonthGrid
-              month={displayedMonth}
-              selectedDay={selectedDay}
-              onSelectDay={setSelectedDay}
-              eventCountsByDay={eventCountsByDay}
-              eventCategoriesByDay={eventCategoriesByDay}
-            />
-          </View>
-
-          <DayView
-            day={selectedDay}
-            events={dayEvents}
-            onSelectEvent={goToEditEvent}
-            onCreate={goToAddEvent}
-          />
-        </>
-      ) : (
-        <DayScheduleView
-          day={selectedDay}
-          events={dayEvents}
-          onSelectEvent={goToEditEvent}
-          onCreate={goToAddEventAtHour}
-        />
-      )}
+      {/*
+        Layers are always rendered in the same order (never keyed or
+        reordered), so a layer that becomes the outgoing one keeps its
+        position and is never remounted mid-transition.
+      */}
+      <View style={styles.viewModeStage}>
+        {VIEW_MODES.map(({ mode }) => {
+          const isCurrent = mode === viewMode;
+          if (!isCurrent && mode !== outgoingMode) {
+            return null;
+          }
+          return (
+            <Animated.View
+              key={mode}
+              style={[styles.viewModeLayer, { opacity: opacities[mode] }]}
+              // The fading-out layer is visual only: no touches, and hidden
+              // from screen readers.
+              pointerEvents={isCurrent ? 'auto' : 'none'}
+              accessibilityElementsHidden={!isCurrent}
+              importantForAccessibility={isCurrent ? 'auto' : 'no-hide-descendants'}
+            >
+              {renderViewMode(mode)}
+            </Animated.View>
+          );
+        })}
+      </View>
     </SafeAreaView>
   );
 }
@@ -228,6 +255,12 @@ const styles = StyleSheet.create({
   navButtonText: {
     fontSize: 22,
     color: colors.textPrimary,
+  },
+  viewModeStage: {
+    flex: 1,
+  },
+  viewModeLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
   segmentedControlRow: {
     paddingHorizontal: spacing.lg,

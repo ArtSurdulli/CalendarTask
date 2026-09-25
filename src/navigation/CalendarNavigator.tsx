@@ -2,6 +2,8 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { CalendarScreen } from '../features/calendar/CalendarScreen';
 import { EventFormScreen } from '../features/events/EventFormScreen';
+import { useReduceMotion } from '../app/useReduceMotion';
+import { modalAnimation, pushAnimation } from './stackAnimations';
 
 export type CalendarStackParamList = {
   CalendarHome: undefined;
@@ -17,8 +19,10 @@ export type CalendarStackParamList = {
 const Stack = createNativeStackNavigator<CalendarStackParamList>();
 
 export function CalendarNavigator() {
+  const reduceMotion = useReduceMotion();
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, ...pushAnimation(reduceMotion) }}>
       <Stack.Screen name="CalendarHome" component={CalendarScreen} />
       <Stack.Screen
         name="EventForm"
@@ -26,6 +30,7 @@ export function CalendarNavigator() {
         options={({ route }) => ({
           headerShown: true,
           presentation: 'modal',
+          ...modalAnimation(reduceMotion),
           title: route.params?.eventId ? 'Edit event' : 'New event',
         })}
       />

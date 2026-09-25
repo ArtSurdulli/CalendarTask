@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { format, parseISO } from 'date-fns';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { disableBiometrics, enableBiometrics, signOut } from '../auth/authSlice';
 import { describeBiometryType } from '../auth/biometricRepository';
+import { selectEventStats } from '../events/eventsSlice';
 import { colors, radius, shadows, spacing } from '../../theme';
 
-/** Profile tab: identity, biometric toggle, sign-out. */
+/** Profile tab: identity, biometric toggle, event stats, sign-out. */
 export function ProfileScreen() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
@@ -15,6 +17,14 @@ export function ProfileScreen() {
   const biometryEnabled = useAppSelector((state) => state.auth.biometryEnabled);
   const isSigningOut = status === 'loading';
   const biometryLabel = describeBiometryType(biometrySupported);
+
+  // Fixed for the screen's lifetime (as on the calendar) so the memoised
+  // selector sees the same month argument on every render.
+  const [today] = useState(() => new Date());
+  const stats = useAppSelector((state) => selectEventStats(state, today));
+  const earliestEvent = stats.earliestStartsAt
+    ? format(parseISO(stats.earliestStartsAt), 'MMM d, yyyy')
+    : 'None yet';
 
   const biometricRowLabel = biometrySupported ? `${biometryLabel} sign-in` : 'Biometric sign-in';
   const biometricRowDescription = biometrySupported
@@ -116,6 +126,13 @@ export function ProfileScreen() {
           </View>
         </View>
 
+        <View style={[styles.card, shadows.card]}>
+          <Text style={styles.cardTitle}>Your events</Text>
+          <StatRow label="Total events" value={String(stats.total)} />
+          <StatRow label={`In ${format(today, 'MMMM')}`} value={String(stats.inMonth)} />
+          <StatRow label="Earliest event" value={earliestEvent} isLast />
+        </View>
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Sign out"
@@ -132,6 +149,26 @@ export function ProfileScreen() {
         </Pressable>
       </View>
     </SafeAreaView>
+  );
+}
+
+interface StatRowProps {
+  label: string;
+  value: string;
+  isLast?: boolean;
+}
+
+/** One label/value line in the stats card, read as a single phrase. */
+function StatRow({ label, value, isLast = false }: StatRowProps) {
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${label}: ${value}`}
+      style={[styles.statRow, !isLast && styles.statRowDivider]}
+    >
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -183,6 +220,31 @@ const styles = StyleSheet.create({
   },
   settingsTextDisabled: {
     color: colors.textMuted,
+  },
+  cardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
+  statRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  statLabel: {
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   signOutButton: {
     alignItems: 'center',

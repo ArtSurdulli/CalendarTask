@@ -6,6 +6,15 @@ export const colors = {
   card: '#FFFFFF',
   surface: '#F5F6F8',
   border: '#E1E4E8',
+  /**
+   * Divider pair for grids drawn straight on `background`, where `border`
+   * (~1.1:1 against it) is too faint to read as a hairline - e.g. the day
+   * schedule. `borderStrong` (~1.75:1, on par with the iOS separator) marks
+   * primary lines; `borderSubtle` (~1.35:1) marks secondary ones, visibly
+   * weaker but still clear.
+   */
+  borderStrong: '#C0B6A6',
+  borderSubtle: '#D6CEC1',
 
   textPrimary: '#1A1D1F',
   textSecondary: '#6B7280',

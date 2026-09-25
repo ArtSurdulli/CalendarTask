@@ -5,6 +5,7 @@ import eventsReducer, {
   loadEvents,
   selectEventCategoriesByDayForMonth,
   selectEventCountsByDayForMonth,
+  selectEventStats,
   selectEventsForDay,
   updateEvent,
 } from './eventsSlice';
@@ -227,5 +228,47 @@ describe('selectEventCategoriesByDayForMonth', () => {
 
     expect(categories.get('2023-10-15')).toEqual(['health']);
     expect(categories.has('2023-11-01')).toBe(false);
+  });
+});
+
+describe('selectEventStats', () => {
+  test('counts all events, events in the month, and finds the earliest start', async () => {
+    const events = [
+      makeEvent({ id: 'a', startsAt: '2023-10-15T09:00:00' }),
+      makeEvent({ id: 'b', startsAt: '2023-10-03T14:00:00' }),
+      makeEvent({ id: 'c', startsAt: '2023-11-01T09:00:00' }),
+      makeEvent({ id: 'd', startsAt: '2022-12-31T23:30:00' }),
+    ];
+    mockedRepository.listForUser.mockResolvedValue(events);
+
+    const store = createTestStore();
+    await store.dispatch(loadEvents('user-1'));
+
+    expect(selectEventStats(store.getState(), new Date(2023, 9, 20))).toEqual({
+      total: 4,
+      inMonth: 2,
+      earliestStartsAt: '2022-12-31T23:30:00',
+    });
+  });
+
+  test('with no events, counts are zero and there is no earliest start', () => {
+    const store = createTestStore();
+
+    expect(selectEventStats(store.getState(), new Date(2023, 9, 20))).toEqual({
+      total: 0,
+      inMonth: 0,
+      earliestStartsAt: undefined,
+    });
+  });
+
+  test('returns the same object for unchanged items and month', async () => {
+    mockedRepository.listForUser.mockResolvedValue([makeEvent()]);
+    const store = createTestStore();
+    await store.dispatch(loadEvents('user-1'));
+    const month = new Date(2023, 9, 20);
+
+    expect(selectEventStats(store.getState(), month)).toBe(
+      selectEventStats(store.getState(), month),
+    );
   });
 });

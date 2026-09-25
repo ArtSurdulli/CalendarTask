@@ -1,5 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   LayoutChangeEvent,
   Pressable,
   StyleSheet,
@@ -15,8 +17,9 @@ import {
   isSameCalendarDay,
   toDayKey,
 } from './dateUtils';
-import { categoryColors, colors, radius, spacing } from '../../theme';
+import { categoryColors, colors, motion, radius, spacing } from '../../theme';
 import type { EventCategory } from '../../types';
+import { useReduceMotion } from '../../app/useReduceMotion';
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -44,10 +47,61 @@ export interface MonthGridProps {
   eventCategoriesByDay?: Map<string, EventCategory[]>;
 }
 
+/** Months since year 0 - a comparable key for which month `date` is in. */
+function monthIndex(date: Date): number {
+  return date.getFullYear() * 12 + date.getMonth();
+}
+
+/**
+ * Slides the grid in from the direction of travel whenever `month`
+ * changes: forward in time enters from the right, backward from the left,
+ * fading in as it moves. Skipped on first render and under Reduce Motion.
+ */
+function useMonthTransition(month: Date) {
+  const reduceMotion = useReduceMotion();
+  const translateX = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const previousMonthIndex = useRef(monthIndex(month));
+  const currentMonthIndex = monthIndex(month);
+
+  // Layout effect, so the new month's first frame is already at the start
+  // position rather than flashing in place before the animation begins.
+  useLayoutEffect(() => {
+    const direction = Math.sign(currentMonthIndex - previousMonthIndex.current);
+    previousMonthIndex.current = currentMonthIndex;
+    if (direction === 0) {
+      return;
+    }
+
+    // setValue also stops any slide still in flight from a previous change.
+    if (reduceMotion) {
+      translateX.setValue(0);
+      opacity.setValue(1);
+      return;
+    }
+
+    translateX.setValue(direction * motion.slideDistance);
+    opacity.setValue(0);
+    const timing = {
+      toValue: 0,
+      duration: motion.duration.standard,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    };
+    Animated.parallel([
+      Animated.timing(translateX, timing),
+      Animated.timing(opacity, { ...timing, toValue: 1 }),
+    ]).start();
+  }, [currentMonthIndex, reduceMotion, translateX, opacity]);
+
+  return { opacity, transform: [{ translateX }] };
+}
+
 /**
  * Presentational month grid. Owns no domain state - `month` and
- * `selectedDay` are fully controlled by the parent. The only local state
- * is the measured container width used to compute equal-width columns.
+ * `selectedDay` are fully controlled by the parent. Local state is the
+ * measured container width used to compute equal-width columns, plus the
+ * month-change animation.
  */
 export function MonthGrid({
   month,
@@ -57,6 +111,7 @@ export function MonthGrid({
   eventCategoriesByDay,
 }: MonthGridProps) {
   const [containerWidth, setContainerWidth] = useState(0);
+  const transitionStyle = useMonthTransition(month);
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     setContainerWidth(event.nativeEvent.layout.width);
@@ -80,27 +135,30 @@ export function MonthGrid({
         Fixed at MAX_CALENDAR_ROWS * cellHeight regardless of how many
         rows this particular month needs, so paging between a 4-row and a
         6-row month never shifts surrounding layout - short months just
-        leave blank space at the bottom.
+        leave blank space at the bottom. Clips the sliding grid so it never
+        draws outside its card mid-transition.
       */}
       <View
-        style={[styles.grid, containerWidth > 0 && { height: gridHeight }]}
+        style={[styles.gridViewport, containerWidth > 0 && { height: gridHeight }]}
         onLayout={handleLayout}
       >
-        {containerWidth > 0 &&
-          cells.map((cell) => {
-            const dayKey = toDayKey(cell.date);
-            return (
-              <DayCell
-                key={dayKey}
-                cell={cell}
-                size={cellSize}
-                isSelected={isSameCalendarDay(cell.date, selectedDay)}
-                eventCount={eventCountsByDay?.get(dayKey) ?? 0}
-                categories={eventCategoriesByDay?.get(dayKey) ?? []}
-                onPress={onSelectDay}
-              />
-            );
-          })}
+        <Animated.View style={[styles.grid, transitionStyle]}>
+          {containerWidth > 0 &&
+            cells.map((cell) => {
+              const dayKey = toDayKey(cell.date);
+              return (
+                <DayCell
+                  key={dayKey}
+                  cell={cell}
+                  size={cellSize}
+                  isSelected={isSameCalendarDay(cell.date, selectedDay)}
+                  eventCount={eventCountsByDay?.get(dayKey) ?? 0}
+                  categories={eventCategoriesByDay?.get(dayKey) ?? []}
+                  onPress={onSelectDay}
+                />
+              );
+            })}
+        </Animated.View>
       </View>
     </View>
   );
@@ -198,6 +256,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  gridViewport: {
+    overflow: 'hidden',
   },
   grid: {
     flexDirection: 'row',
