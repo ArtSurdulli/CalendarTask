@@ -146,6 +146,7 @@ export function MonthGrid({
         draws outside its card mid-transition.
       */}
       <View
+        testID="month-grid-days"
         style={[styles.gridViewport, containerWidth > 0 && { height: gridHeight }]}
         onLayout={handleLayout}
       >
@@ -191,7 +192,9 @@ function DayCell({ cell, size, isSelected, eventCount, categories, onPress }: Da
   const hasEvents = eventCount > 0;
   const visibleCategories = categories.slice(0, MAX_CATEGORY_DOTS);
 
-  const dateLabel = format(date, 'EEEE, MMMM d, yyyy');
+  // "today" is otherwise conveyed only by the ring, which screen readers
+  // can't see.
+  const dateLabel = `${format(date, 'EEEE, MMMM d, yyyy')}${isToday ? ', today' : ''}`;
   const accessibilityLabel = hasEvents
     ? `${dateLabel}, ${eventCount} event${eventCount === 1 ? '' : 's'}`
     : dateLabel;
@@ -237,6 +240,7 @@ function DayCell({ cell, size, isSelected, eventCount, categories, onPress }: Da
             {visibleCategories.map((category) => (
               <View
                 key={category}
+                testID={`category-dot-${category}`}
                 style={[styles.categoryDot, { backgroundColor: categoryColors[category] }]}
               />
             ))}
