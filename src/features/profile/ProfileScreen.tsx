@@ -3,7 +3,12 @@ import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format, parseISO } from 'date-fns';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { disableBiometrics, enableBiometrics, signOut } from '../auth/authSlice';
+import {
+  disableBiometrics,
+  enableBiometrics,
+  selectBiometryEnabledForUser,
+  signOut,
+} from '../auth/authSlice';
 import { describeBiometryType } from '../auth/biometricRepository';
 import { selectEventStats } from '../events/eventsSlice';
 import { makeStyles, radius, spacing, useTheme } from '../../theme';
@@ -16,7 +21,7 @@ export function ProfileScreen() {
   const user = useAppSelector((state) => state.auth.user);
   const status = useAppSelector((state) => state.auth.status);
   const biometrySupported = useAppSelector((state) => state.auth.biometrySupported);
-  const biometryEnabled = useAppSelector((state) => state.auth.biometryEnabled);
+  const biometryEnabled = useAppSelector(selectBiometryEnabledForUser);
   const isSigningOut = status === 'loading';
   const biometryLabel = describeBiometryType(biometrySupported);
 

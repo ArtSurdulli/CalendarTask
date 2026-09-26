@@ -6,6 +6,8 @@ import authReducer, {
   disableBiometrics,
   enableBiometrics,
   loadBiometricStatus,
+  selectBiometryEnabledForUser,
+  signIn,
   signInWithBiometrics,
 } from './authSlice';
 import { authRepository } from './authRepository';
@@ -27,6 +29,7 @@ jest.mock('./biometricRepository', () => ({
   biometricRepository: {
     isSupported: jest.fn(),
     isEnabled: jest.fn(),
+    getOwnerEmail: jest.fn(),
     enable: jest.fn(),
     getCredentials: jest.fn(),
     disable: jest.fn(),
@@ -129,7 +132,11 @@ describe('disableBiometrics', () => {
     const store = createTestStore();
     // Start from enabled to prove the thunk actually flips it, not just
     // reads a default.
-    await store.dispatch(loadBiometricStatus.fulfilled({ supported: null, enabled: true }, '', undefined));
+    await store.dispatch(loadBiometricStatus.fulfilled(
+        { supported: null, enabled: true, ownerEmail: user.email },
+        '',
+        undefined,
+      ));
     await store.dispatch(disableBiometrics());
 
     expect(store.getState().auth.biometryEnabled).toBe(false);
@@ -164,6 +171,7 @@ describe('checkBiometricEnrollmentOffer', () => {
   test('does not offer when already enabled', async () => {
     mockedBiometricRepository.isSupported.mockResolvedValue(BIOMETRY_TYPE.FACE_ID);
     mockedBiometricRepository.isEnabled.mockResolvedValue(true);
+    mockedBiometricRepository.getOwnerEmail.mockResolvedValue(user.email);
 
     const result = await checkBiometricEnrollmentOffer(user.email);
 
@@ -199,5 +207,65 @@ describe('declineBiometricPrompt', () => {
     await declineBiometricPrompt(user.email);
 
     expect(mockedAuthRepository.setDeclinedBiometricPrompt).toHaveBeenCalledWith(user.email);
+  });
+});
+
+describe('a credential stored by a different account', () => {
+  const otherUser: User = { id: 'user-2', name: 'Bob', email: 'bob@example.com' };
+
+  function storeSignedInAs(signedIn: User, ownerEmail: string | null) {
+    const store = createTestStore();
+    store.dispatch(signIn.fulfilled(signedIn, '', { email: signedIn.email, password: 'x' }));
+    store.dispatch(
+      loadBiometricStatus.fulfilled(
+        { supported: BIOMETRY_TYPE.FACE_ID, enabled: true, ownerEmail },
+        '',
+        undefined,
+      ),
+    );
+    return store;
+  }
+
+  test('is not treated as enabled for the signed-in account', () => {
+    const store = storeSignedInAs(otherUser, user.email);
+
+    expect(selectBiometryEnabledForUser(store.getState())).toBe(false);
+    // Still on the device, so the Unlock screen can offer it to its owner.
+    expect(store.getState().auth.biometryEnabled).toBe(true);
+  });
+
+  test('is treated as enabled for its owner, ignoring email case', () => {
+    const store = storeSignedInAs(user, user.email.toUpperCase());
+
+    expect(selectBiometryEnabledForUser(store.getState())).toBe(true);
+  });
+
+  test('with no recorded owner is not treated as anyone\'s', () => {
+    const store = storeSignedInAs(user, null);
+
+    expect(selectBiometryEnabledForUser(store.getState())).toBe(false);
+  });
+
+  test('does not stop the enrolment offer to another account', async () => {
+    mockedBiometricRepository.isSupported.mockResolvedValue(BIOMETRY_TYPE.FACE_ID);
+    mockedBiometricRepository.isEnabled.mockResolvedValue(true);
+    mockedBiometricRepository.getOwnerEmail.mockResolvedValue(user.email);
+    mockedAuthRepository.hasDeclinedBiometricPrompt.mockResolvedValue(false);
+
+    const result = await checkBiometricEnrollmentOffer(otherUser.email);
+
+    expect(result).toEqual({ shouldOffer: true, biometryType: BIOMETRY_TYPE.FACE_ID });
+  });
+
+  test('is replaced when another account enables biometrics', async () => {
+    mockedAuthRepository.signIn.mockResolvedValue({ token: 't', user: otherUser });
+    mockedBiometricRepository.enable.mockResolvedValue(undefined);
+    const store = storeSignedInAs(otherUser, user.email);
+
+    await store.dispatch(enableBiometrics({ email: otherUser.email, password: 'pw' }));
+
+    expect(mockedBiometricRepository.enable).toHaveBeenCalledWith(otherUser.email, 'pw');
+    expect(store.getState().auth.biometricOwnerEmail).toBe(otherUser.email);
+    expect(selectBiometryEnabledForUser(store.getState())).toBe(true);
   });
 });

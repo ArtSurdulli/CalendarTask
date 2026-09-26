@@ -14,6 +14,11 @@ export interface AuthState {
   biometrySupported: BiometryType | null;
   /** Whether the current device has a stored biometric credential. */
   biometryEnabled: boolean;
+  /**
+   * Which account that credential belongs to (lowercased email), or null.
+   * The credential is device-wide; this is what scopes it to one account.
+   */
+  biometricOwnerEmail: string | null;
 }
 
 const initialState: AuthState = {
@@ -22,7 +27,12 @@ const initialState: AuthState = {
   error: null,
   biometrySupported: null,
   biometryEnabled: false,
+  biometricOwnerEmail: null,
 };
+
+function isSameEmail(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error
@@ -80,6 +90,7 @@ export const signOut = createAsyncThunk<void, void, { rejectValue: string }>(
 export interface BiometricStatus {
   supported: BiometryType | null;
   enabled: boolean;
+  ownerEmail: string | null;
 }
 
 /** Checked at boot, and again after enabling/disabling from the Profile screen. */
@@ -91,7 +102,8 @@ export const loadBiometricStatus = createAsyncThunk<
   try {
     const supported = await biometricRepository.isSupported();
     const enabled = await biometricRepository.isEnabled();
-    return { supported, enabled };
+    const ownerEmail = enabled ? await biometricRepository.getOwnerEmail() : null;
+    return { supported, enabled, ownerEmail };
   } catch (error) {
     return rejectWithValue(errorMessage(error));
   }
@@ -160,8 +172,13 @@ export async function checkBiometricEnrollmentOffer(
   if (!biometryType) {
     return { shouldOffer: false, biometryType: null };
   }
+  // Only this account's own credential counts as "already enabled": one
+  // stored for a different account is offered to be replaced.
   if (await biometricRepository.isEnabled()) {
-    return { shouldOffer: false, biometryType };
+    const ownerEmail = await biometricRepository.getOwnerEmail();
+    if (ownerEmail && isSameEmail(ownerEmail, email)) {
+      return { shouldOffer: false, biometryType };
+    }
   }
   const declined = await authRepository.hasDeclinedBiometricPrompt(email);
   return { shouldOffer: !declined, biometryType };
@@ -236,13 +253,15 @@ const authSlice = createSlice({
       .addCase(loadBiometricStatus.fulfilled, (state, action: PayloadAction<BiometricStatus>) => {
         state.biometrySupported = action.payload.supported;
         state.biometryEnabled = action.payload.enabled;
+        state.biometricOwnerEmail = action.payload.ownerEmail;
       })
       .addCase(loadBiometricStatus.rejected, (state, action) => {
         state.error = action.payload ?? 'Failed to check Face ID availability.';
       })
 
-      .addCase(enableBiometrics.fulfilled, (state) => {
+      .addCase(enableBiometrics.fulfilled, (state, action) => {
         state.biometryEnabled = true;
+        state.biometricOwnerEmail = action.meta.arg.email.trim().toLowerCase();
       })
       .addCase(enableBiometrics.rejected, (state, action) => {
         state.error = action.payload ?? 'Failed to enable Face ID.';
@@ -250,6 +269,7 @@ const authSlice = createSlice({
 
       .addCase(disableBiometrics.fulfilled, (state) => {
         state.biometryEnabled = false;
+        state.biometricOwnerEmail = null;
       })
       .addCase(disableBiometrics.rejected, (state, action) => {
         state.error = action.payload ?? 'Failed to disable Face ID.';
@@ -276,3 +296,18 @@ const authSlice = createSlice({
 });
 
 export default authSlice.reducer;
+
+/**
+ * Whether biometric sign-in is on for the signed-in account: a credential
+ * exists and belongs to that account. A credential stored by another
+ * account on this device doesn't count.
+ */
+export function selectBiometryEnabledForUser(state: { auth: AuthState }): boolean {
+  const { user, biometryEnabled, biometricOwnerEmail } = state.auth;
+  return (
+    biometryEnabled &&
+    user != null &&
+    biometricOwnerEmail != null &&
+    isSameEmail(biometricOwnerEmail, user.email)
+  );
+}

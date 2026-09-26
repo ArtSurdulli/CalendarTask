@@ -32,6 +32,28 @@ import type { CalendarEvent } from '../../types';
 
 const EVENTS_COLLECTION = 'events';
 
+const GENERIC_ERROR = 'Something went wrong. Please try again.';
+
+/** Firestore error codes -> plain messages, instead of raw "[firestore/...]" text. */
+const MESSAGES_BY_CODE: Record<string, string> = {
+  'firestore/permission-denied': "You don't have permission to change this event.",
+  'firestore/unauthenticated': 'Your session has expired. Please sign in again.',
+  'firestore/unavailable': 'Network unavailable. Check your connection and try again.',
+  'firestore/not-found': 'Event not found.',
+};
+
+/**
+ * Firestore errors become a plain message (a generic one for unmapped
+ * codes). This repository's own errors carry no code and pass through.
+ */
+function toAppError(error: unknown): Error {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === 'string' && code.startsWith('firestore/')) {
+    return new Error(MESSAGES_BY_CODE[code] ?? GENERIC_ERROR);
+  }
+  return error instanceof Error ? error : new Error(GENERIC_ERROR);
+}
+
 function eventsCollection() {
   return collection(getFirestore(), EVENTS_COLLECTION);
 }
@@ -86,38 +108,54 @@ async function findOwnedEvent(id: string, uid: string): Promise<CalendarEvent | 
 
 class FirebaseEventRepository implements EventRepository {
   async listForUser(userId: string): Promise<CalendarEvent[]> {
-    const uid = signedInUid();
-    if (userId !== uid) {
-      return [];
+    try {
+      const uid = signedInUid();
+      if (userId !== uid) {
+        return [];
+      }
+      const snapshot = await getDocs(query(eventsCollection(), where('userId', '==', uid)));
+      return snapshot.docs.map((document) => toEvent(document.id, document.data()));
+    } catch (error) {
+      throw toAppError(error);
     }
-    const snapshot = await getDocs(query(eventsCollection(), where('userId', '==', uid)));
-    return snapshot.docs.map((document) => toEvent(document.id, document.data()));
   }
 
   async create(input: NewEventInput): Promise<CalendarEvent> {
-    const uid = signedInUid();
-    if (input.userId !== uid) {
-      throw new Error('Event not found.');
+    try {
+      const uid = signedInUid();
+      if (input.userId !== uid) {
+        throw new Error('Event not found.');
+      }
+      const reference = await addDoc(eventsCollection(), toDocument(input));
+      return { ...input, id: reference.id };
+    } catch (error) {
+      throw toAppError(error);
     }
-    const reference = await addDoc(eventsCollection(), toDocument(input));
-    return { ...input, id: reference.id };
   }
 
   async update(event: CalendarEvent): Promise<CalendarEvent> {
-    const uid = signedInUid();
-    if (event.userId !== uid || !(await findOwnedEvent(event.id, uid))) {
-      throw new Error('Event not found.');
+    try {
+      const uid = signedInUid();
+      if (event.userId !== uid || !(await findOwnedEvent(event.id, uid))) {
+        throw new Error('Event not found.');
+      }
+      await setDoc(doc(eventsCollection(), event.id), toDocument(event));
+      return event;
+    } catch (error) {
+      throw toAppError(error);
     }
-    await setDoc(doc(eventsCollection(), event.id), toDocument(event));
-    return event;
   }
 
   async remove(id: string): Promise<void> {
-    const uid = signedInUid();
-    // Like the local repository, removing an event that isn't there (or
-    // isn't yours) is a no-op rather than an error.
-    if (await findOwnedEvent(id, uid)) {
-      await deleteDoc(doc(eventsCollection(), id));
+    try {
+      const uid = signedInUid();
+      // Like the local repository, removing an event that isn't there (or
+      // isn't yours) is a no-op rather than an error.
+      if (await findOwnedEvent(id, uid)) {
+        await deleteDoc(doc(eventsCollection(), id));
+      }
+    } catch (error) {
+      throw toAppError(error);
     }
   }
 }

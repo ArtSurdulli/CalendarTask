@@ -15,9 +15,16 @@
  * directly. Screens and the Redux slice go through `BiometricRepository`
  * instead.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 
 const SERVICE = 'com.calendartask.biometric-credentials';
+/**
+ * Which account the stored credential belongs to, kept outside the Keychain
+ * item so it can be read without a biometric prompt. Not secret - it's the
+ * same email the credential's own username holds.
+ */
+const OWNER_EMAIL_KEY = '@biometric/owner-email';
 
 export type BiometryType = Keychain.BIOMETRY_TYPE;
 
@@ -32,10 +39,16 @@ export interface BiometricRepository {
   /** Whether a credential is currently stored (no prompt triggered). */
   isEnabled(): Promise<boolean>;
   /**
+   * Email of the account the stored credential belongs to (lowercased), or
+   * null if none is recorded. No prompt triggered.
+   */
+  getOwnerEmail(): Promise<string | null>;
+  /**
    * Stores `email`/`password` behind biometric access control. Gated by
    * BIOMETRY_CURRENT_SET, which matters: the entry invalidates itself if
    * the user enrols a new face or fingerprint, rather than silently
-   * accepting whatever biometry is on the device *now*.
+   * accepting whatever biometry is on the device *now*. Replaces any
+   * credential already stored, including another account's.
    */
   enable(email: string, password: string): Promise<void>;
   /**
@@ -89,6 +102,10 @@ class KeychainBiometricRepository implements BiometricRepository {
     return Keychain.hasGenericPassword({ service: SERVICE });
   }
 
+  async getOwnerEmail(): Promise<string | null> {
+    return AsyncStorage.getItem(OWNER_EMAIL_KEY);
+  }
+
   async enable(email: string, password: string): Promise<void> {
     const result = await Keychain.setGenericPassword(email, password, {
       service: SERVICE,
@@ -99,6 +116,7 @@ class KeychainBiometricRepository implements BiometricRepository {
     if (!result) {
       throw new Error('Failed to enable Face ID sign-in.');
     }
+    await AsyncStorage.setItem(OWNER_EMAIL_KEY, email.trim().toLowerCase());
   }
 
   async getCredentials(): Promise<StoredCredentials | null> {
@@ -118,6 +136,7 @@ class KeychainBiometricRepository implements BiometricRepository {
 
   async disable(): Promise<void> {
     await Keychain.resetGenericPassword({ service: SERVICE });
+    await AsyncStorage.removeItem(OWNER_EMAIL_KEY);
   }
 }
 

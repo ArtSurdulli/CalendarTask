@@ -2,6 +2,7 @@ import { createAsyncThunk, createSelector, createSlice, type PayloadAction } fro
 import { addMonths, isSameMonth, startOfMonth } from 'date-fns';
 import type { NewEventInput } from './eventRepository';
 import { eventRepository } from '../../app/repositories';
+import { signOut } from '../auth/authSlice';
 import {
   getEventDays,
   getEventInterval,
@@ -17,12 +18,15 @@ export interface EventsState {
   items: CalendarEvent[];
   status: EventsStatus;
   error: string | null;
+  /** The user the latest `loadEvents` was for; results for anyone else are stale. */
+  userId: string | null;
 }
 
 const initialState: EventsState = {
   items: [],
   status: 'idle',
   error: null,
+  userId: null,
 };
 
 function errorMessage(error: unknown): string {
@@ -84,11 +88,17 @@ const eventsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(loadEvents.pending, (state) => {
+      .addCase(loadEvents.pending, (state, action) => {
         state.status = 'loading';
         state.error = null;
+        state.userId = action.meta.arg;
       })
-      .addCase(loadEvents.fulfilled, (state, action: PayloadAction<CalendarEvent[]>) => {
+      .addCase(loadEvents.fulfilled, (state, action) => {
+        // A late result for a previous user (after sign-out, or a switch
+        // of account) must not overwrite the current user's list.
+        if (action.meta.arg !== state.userId) {
+          return;
+        }
         state.items = action.payload;
         state.status = 'idle';
       })
@@ -137,7 +147,10 @@ const eventsSlice = createSlice({
       .addCase(deleteEvent.rejected, (state, action) => {
         state.status = 'idle';
         state.error = action.payload ?? 'Failed to delete event.';
-      });
+      })
+
+      // Nothing of the signed-out user's may remain for the next one.
+      .addCase(signOut.fulfilled, () => initialState);
   },
 });
 

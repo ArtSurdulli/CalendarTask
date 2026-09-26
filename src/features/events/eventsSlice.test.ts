@@ -10,7 +10,7 @@ import eventsReducer, {
   updateEvent,
 } from './eventsSlice';
 import { eventRepository } from './eventRepository';
-import authReducer from '../auth/authSlice';
+import authReducer, { signOut } from '../auth/authSlice';
 import type { CalendarEvent } from '../../types';
 
 jest.mock('./eventRepository', () => ({
@@ -335,5 +335,61 @@ describe('multi-day events in the month selectors', () => {
     const store = await storeWith([lateShow]);
 
     expect(selectEventsForDay(store.getState(), new Date(2023, 9, 26))).toEqual([lateShow]);
+  });
+});
+
+describe('switching users', () => {
+  test('signing out clears the signed-out user\'s events, status and error', async () => {
+    mockedRepository.listForUser.mockResolvedValue([makeEvent()]);
+    const store = createTestStore();
+    await store.dispatch(loadEvents('user-1'));
+
+    store.dispatch(signOut.fulfilled(undefined, 'request-id'));
+
+    expect(store.getState().events).toEqual({
+      items: [],
+      status: 'idle',
+      error: null,
+      userId: null,
+    });
+  });
+
+  test("a late load for a previous user doesn't overwrite the current user's events", async () => {
+    let resolveFirst!: (events: CalendarEvent[]) => void;
+    const firstUsersLoad = new Promise<CalendarEvent[]>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondUsersEvent = makeEvent({ id: 'b-1', userId: 'user-2' });
+    mockedRepository.listForUser
+      .mockReturnValueOnce(firstUsersLoad)
+      .mockResolvedValueOnce([secondUsersEvent]);
+
+    const store = createTestStore();
+    const slowLoad = store.dispatch(loadEvents('user-1'));
+    store.dispatch(signOut.fulfilled(undefined, 'request-id'));
+    await store.dispatch(loadEvents('user-2'));
+
+    resolveFirst([makeEvent({ id: 'a-1', userId: 'user-1' })]);
+    await slowLoad;
+
+    expect(store.getState().events.items).toEqual([secondUsersEvent]);
+  });
+
+  test('a late load that finishes after sign-out leaves the list empty', async () => {
+    let resolveLoad!: (events: CalendarEvent[]) => void;
+    mockedRepository.listForUser.mockReturnValueOnce(
+      new Promise<CalendarEvent[]>((resolve) => {
+        resolveLoad = resolve;
+      }),
+    );
+
+    const store = createTestStore();
+    const slowLoad = store.dispatch(loadEvents('user-1'));
+    store.dispatch(signOut.fulfilled(undefined, 'request-id'));
+
+    resolveLoad([makeEvent()]);
+    await slowLoad;
+
+    expect(store.getState().events.items).toEqual([]);
   });
 });

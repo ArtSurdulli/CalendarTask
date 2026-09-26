@@ -61,7 +61,7 @@ instead:
    `org.reactjs.native.example.CalendarTask`.
 2. Download its `GoogleService-Info.plist` and replace `ios/GoogleService-Info.plist`.
 3. Under Authentication, enable the Email/Password sign-in provider.
-4. Create a Cloud Firestore database and publish the rules in [Data layer](#data-layer).
+4. Create a Cloud Firestore database and publish [`firestore.rules`](firestore.rules).
 
 ### Run
 
@@ -154,22 +154,10 @@ The Firebase iOS SDK is resolved through Swift Package Manager with dynamic fram
 and Abseil dependencies arrive as prebuilt binaries. An earlier CocoaPods-based attempt compiled
 gRPC from source and failed to generate a module map under Xcode 26.
 
-**Firestore security rules.** These scope every event document to its owner's uid. They are not
-stored in this repository, so publish them in the Firebase console:
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /events/{eventId} {
-      allow read, update, delete: if request.auth != null
-        && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
-    }
-  }
-}
-```
+**Firestore security rules.** The rules are in [`firestore.rules`](firestore.rules) at the
+project root; publish that file in the Firebase console. They scope every event document to its
+owner's uid: only that user can read, create, update or delete it, and an update cannot change
+the event's `userId`, so an event can't be reassigned to another user.
 
 The read rule also means a query that isn't filtered by `userId` is rejected outright rather
 than returning only the caller's documents, which is why the repository always filters by uid.
@@ -293,7 +281,7 @@ npm test                    # run the suite
 npx jest --coverage         # with coverage
 ```
 
-117 tests across 11 suites, all passing. Tests run against the local implementations:
+125 tests across 11 suites, all passing. Tests run against the local implementations:
 `jest.setup.js` sets `USE_FIREBASE` to false and stubs the two Firebase implementation files,
 since `@react-native-firebase` cannot load under Jest. Coverage is measured across all of `src/`
 (excluding test files), not only the files a test imports: 46% of statements.
@@ -301,9 +289,9 @@ since `@react-native-firebase` cannot load under Jest. Coverage is measured acro
 | Suite | Tests | Covers |
 | --- | --- | --- |
 | `dateUtils.test.ts` | 37 | Grid generation, 4/5/6-row months, leap years, year rollover, month and day navigation, events spanning midnight and several days, time-range formatting, local ISO round-tripping |
-| `eventsSlice.test.ts` | 17 | Create/update/delete, day and month selectors including multi-day events, profile statistics, error handling |
+| `eventsSlice.test.ts` | 20 | Create/update/delete, day and month selectors including multi-day events, profile statistics, error handling, clearing events on sign-out, ignoring a late load for a previous user |
+| `authSlice.test.ts` | 17 | Biometric sign-in, enrolment (a wrong password never reaches the Keychain; a cancelled prompt is not an error), enrolment offer, a credential scoped to the account that stored it |
 | `MonthGrid.test.tsx` | 13 | Cell count per month, today and selected markers, category dots, day selection, column layout |
-| `authSlice.test.ts` | 12 | Biometric sign-in, enrolment (a wrong password never reaches the Keychain; a cancelled prompt is not an error), enrolment offer |
 | `DayScheduleView.test.tsx` | 9 | All 24 hour rows, creating at an hour, the four-column cap, events clamped across midnight |
 | `DayView.test.tsx` | 9 | Sorting, empty state and create action, event selection, continuing events |
 | `useViewModeCrossFade.test.tsx` | 5 | Month/Day cross-fade: no flash, reversal mid-fade, no remounting, Reduce Motion |
@@ -322,14 +310,13 @@ Not covered:
 - The Firebase repositories (0%), which are stubbed out in tests.
 - The AsyncStorage auth repository and the Keychain biometric repository, both under 10%.
 - The navigators, `useReduceMotion`, and the stack animation options.
-- About half of the auth slice.
+- About 40% of the auth slice.
 
 ## Known limitations
 
 - iOS only. The app has been built and run only on the iOS simulator; Android is untested.
 - The Firestore rules are minimal. They restrict each document to its owner but do not validate
-  field types or values, and they are kept in the Firebase console rather than in this
-  repository.
+  field types or values, and they are not covered by automated tests.
 - No offline conflict handling. Firestore's defaults apply: writes made offline are queued and
   the last write to reach the server wins.
 - The Keychain item for biometric unlock holds the account password. A production app would
